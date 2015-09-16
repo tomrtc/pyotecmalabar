@@ -20,5 +20,17 @@ class OtecCfg:
         def getSettings(self, group):
                 return self.configparser[group]
 
+
 def get_configuration(config_file_name, interpolation=configparser.BasicInterpolation()):
         return OtecCfg(config_file_name, interpolation)
+
+
+def create_default_config_file():
+    self.configparser = configparser.ConfigParser(interpolation=None)
+    config.add_section(DEFAULT_GROUP)
+    config.set(DEFAULT_GROUP, 'enabled', 'false')
+    config.add_section('SystemUnderTest')
+    if not os.path.exists(config_file_dir_path):
+        os.makedirs(config_file_dir_path)
+    with open(config_file_path, 'wb') as configfile:
+        config.write(configfile)

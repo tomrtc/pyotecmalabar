@@ -59,6 +59,19 @@ def fetch_template(obj, name):
 def esxi(obj, host, name, user, password, insecure):
     '''Connect to host with API.'''
     print(host)
+    # Build a view and get basic properties for all Virtual Machines
+    objView = content.viewManager.CreateContainerView(content.rootFolder, viewType, True)
+    tSpec = vim.PropertyCollector.TraversalSpec(name='tSpecName', path='view', skip=False, type=vim.view.ContainerView)
+    pSpec = vim.PropertyCollector.PropertySpec(all=False, pathSet=props, type=specType)
+    oSpec = vim.PropertyCollector.ObjectSpec(obj=objView, selectSet=[tSpec], skip=False)
+    pfSpec = vim.PropertyCollector.FilterSpec(objectSet=[oSpec], propSet=[pSpec], reportMissingObjectsInResults=False)
+    retOptions = vim.PropertyCollector.RetrieveOptions()
+    totalProps = []
+    retProps = content.propertyCollector.RetrievePropertiesEx(specSet=[pfSpec], options=retOptions)
+    totalProps += retProps.objects
+    while retProps.token:
+        retProps = content.propertyCollector.ContinueRetrievePropertiesEx(token=retProps.token)
+        totalProps += retProps.objects
 
 
 
