@@ -11,13 +11,11 @@ from .config import CONFIGURATION_FILE_NAME
 from .config import get_configuration
 from .config import create_default_config_file
 
-import pprint as pretty
-
 
 def print_version(ctx, param, value):
     if not value or ctx.resilient_parsing:
         return
-    click.echo('Malabar {}'.format(malabar.__version__))
+    click.secho('Malabar {}'.format(malabar.__version__), fg='green')
     ctx.exit()
 
 
@@ -25,13 +23,13 @@ def print_version(ctx, param, value):
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
+
 @click.group(cls=AliasedGroup, context_settings=CONTEXT_SETTINGS)
 @click.option('--config-file', '-c', help='Use alternative configuration file',
               default=CONFIGURATION_FILE_NAME, metavar='PATH')
 @click.option('-V', '--version', is_flag=True, callback=print_version,
               expose_value=False, is_eager=True,
               help='Print the current version number and exit.')
-
 @click.pass_context
 def cli(ctx,   config_file):
     ctx.obj = get_configuration(config_file)
@@ -39,15 +37,17 @@ def cli(ctx,   config_file):
 
 @cli.command('list')
 @click.pass_obj
-def list_tokens(obj):
-    '''List tokens'''
-    pretty.pprint(obj.getDefaultSettings())
+def list(obj):
+    '''List'''
+    click.secho(obj.getDefaultSettings(), fg='blue')
+
 
 @cli.command('init')
 @click.pass_obj
 def init(obj):
     '''init'''
     create_default_config_file()
+    click.secho('init', fg='red')
 
 
 @cli.command('fetch')
@@ -55,7 +55,7 @@ def init(obj):
 @click.pass_obj
 def fetch_template(obj, name):
     '''fetch a named template'''
-    print("fetch")
+    click.secho('fetch', fg='blue')
 
 
 @cli.command('esxi')
@@ -64,11 +64,14 @@ def fetch_template(obj, name):
               envvar='USER', metavar='NAME')
 @click.option('-p', '--password', help='Password to use for authentication',
               envvar='MALABAR_PASSWORD', metavar='PWD')
-@click.option('--insecure', help='Do not verify SSL certificate', is_flag=True, default=False)
+@click.option('--insecure', help='Do not verify SSL certificate',
+              is_flag=True, default=False)
 @click.pass_obj
 def esxi(obj, host, name, user, password, insecure):
     '''Connect to host with API.'''
     print(host)
+    click.secho('fetch', fg='green')
+
     # Build a view and get basic properties for all Virtual Machines
     #objView = content.viewManager.CreateContainerView(content.rootFolder, viewType, True)
     #tSpec = vim.PropertyCollector.TraversalSpec(name='tSpecName', path='view', skip=False, type=vim.view.ContainerView)

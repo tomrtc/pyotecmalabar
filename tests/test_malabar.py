@@ -3,17 +3,16 @@
 
 from click.testing import CliRunner
 
-from malabar.__main__ import main
+from malabar.malabar import cli
 
 
 def test_main():
     runner = CliRunner()
-    result = runner.invoke(main, [])
+    result = runner.invoke(cli, [])
+    assert 'Usage:' in result.output
+    assert result.exit_code == 0
 
-    assert result.output == ''
-    assert result.exit_code == -1
+    result = runner.invoke(cli, ['init'])
 
-    result = runner.invoke(main, ['init'])
-
-    assert result.output == ''
+    assert 'init' in result.output
     assert result.exit_code == 0
