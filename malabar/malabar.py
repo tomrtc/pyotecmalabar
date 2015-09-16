@@ -47,7 +47,8 @@ def list(obj):
 def init(obj):
     '''init'''
     create_default_config_file()
-    click.secho('init', fg='red')
+    click.secho('Init Path: %s' % click.format_filename(CONFIGURATION_FILE_NAME), bold=True, fg='green')
+
 
 
 @cli.command('fetch')
