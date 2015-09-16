@@ -10,5 +10,10 @@ def test_main():
     runner = CliRunner()
     result = runner.invoke(main, [])
 
-    assert result.output == 'Malabar main command line invoked.\n'
+    assert result.output == ''
+    assert result.exit_code == -1
+
+    result = runner.invoke(main, ['init'])
+
+    assert result.output == ''
     assert result.exit_code == 0

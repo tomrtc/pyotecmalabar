@@ -82,7 +82,3 @@ def esxi(obj, host, name, user, password, insecure):
     # while retProps.token:
     #     retProps = content.propertyCollector.ContinueRetrievePropertiesEx(token=retProps.token)
     #     totalProps += retProps.objects
-
-
-def main():
-    cli()

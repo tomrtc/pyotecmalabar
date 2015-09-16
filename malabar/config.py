@@ -16,7 +16,6 @@ OTEC_TEMPLATE_RSS_URI          = "http://cdafactory.pqa-collab.fr.alcatel-lucent
 class OtecCfg:
         def __init__(self, sfile, _interpolation):
                 self.configparser = configparser.ConfigParser(interpolation=_interpolation)
-                print(sfile)
                 self.configparser.read(sfile)
 
         def getDefaultSettings(self):
