@@ -37,7 +37,7 @@ def cli(ctx,   config_file):
 
 @cli.command('list')
 @click.pass_obj
-def list_tokens(obj, output):
+def list_tokens(obj):
     '''List tokens'''
     print(obj)
 
