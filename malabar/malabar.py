@@ -45,7 +45,7 @@ def list_tokens(obj):
 
 @cli.command('init')
 @click.pass_obj
-def list_tokens(obj):
+def init(obj):
     '''init'''
     create_default_config_file()
 
