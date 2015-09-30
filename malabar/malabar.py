@@ -11,6 +11,8 @@ from .config import CONFIGURATION_FILE_NAME
 from .config import get_configuration
 from .config import create_default_config_file
 
+from .feeder import fetch_ovf_from_rss
+
 
 def print_version(ctx, param, value):
     if not value or ctx.resilient_parsing:
@@ -56,6 +58,7 @@ def init(obj):
 @click.pass_obj
 def fetch_template(obj, name):
     '''fetch a named template'''
+    fetch_ovf_from_rss(obj.getSettings())
     click.secho('fetch', fg='blue')
 
 
@@ -68,9 +71,9 @@ def fetch_template(obj, name):
 @click.option('--insecure', help='Do not verify SSL certificate',
               is_flag=True, default=False)
 @click.pass_obj
-def esxi(obj, host, name, user, password, insecure):
+def esxi(obj, hostname, user, password, insecure):
     '''Connect to host with API.'''
-    print(host)
+    print(hostname)
     click.secho('fetch', fg='green')
 
     # Build a view and get basic properties for all Virtual Machines
