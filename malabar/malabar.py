@@ -8,6 +8,7 @@ from clickclick import AliasedGroup
 
 import malabar
 from .config import CONFIGURATION_FILE_NAME
+from .config import RSS_DATABASE_FILE_PATH
 from .config import get_configuration
 from .config import create_default_config_file
 
@@ -58,8 +59,9 @@ def init(obj):
 @click.pass_obj
 def fetch_template(obj, name):
     '''fetch a named template'''
-    fetch_ovf_from_rss(obj.getSettings())
-    click.secho('fetch', fg='blue')
+    click.secho('fetching ...', fg='blue')
+    fetch_ovf_from_rss(name, obj.getSettings('otec')['rss-uri'], RSS_DATABASE_FILE_PATH)
+
 
 
 @cli.command('esxi')
