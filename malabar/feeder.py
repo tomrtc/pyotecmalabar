@@ -12,6 +12,10 @@ from datetime import datetime
 from string import Template
 import pprint
 
+import requests
+
+from bs4 import BeautifulSoup
+
 def check_delivery(name,db):
         '''check availbal delivery'''
         with open(db, 'r') as database:
@@ -40,8 +44,6 @@ def check_outdated_delivery(name,db, ts):
                                         return True
                                 return False
 
-def compare_deliveries(a, b):
-        return cmp(int(mktime(a.published_parsed)), int(mktime(b.published_parsed)))
 
 
 def fetch_ovf_from_rss(name, rss_uri, rss_db):
@@ -73,3 +75,10 @@ def fetch_ovf_from_rss(name, rss_uri, rss_db):
 
     pp = pprint.PrettyPrinter(indent=4)
     pp.pprint(elected_delivery.links)
+    response = requests.get(elected_delivery.links[0].href)
+    soup = BeautifulSoup(response.content, "html.parser")
+    links = soup.find_all('a')
+    for tag in links:
+            link = tag.get('href',None)
+            if link is not None and not ".." in link:
+                     click.secho("      ⇒❯" + elected_delivery.links[0].href + "/" + link, fg='cyan', blink=True)
