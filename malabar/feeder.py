@@ -40,6 +40,9 @@ def check_outdated_delivery(name,db, ts):
                                         return True
                                 return False
 
+def compare_deliveries(a, b):
+        return cmp(int(mktime(a.published_parsed)), int(mktime(b.published_parsed)))
+
 
 def fetch_ovf_from_rss(name, rss_uri, rss_db):
     '''feedparsing and http-download'''
@@ -49,22 +52,21 @@ def fetch_ovf_from_rss(name, rss_uri, rss_db):
                     database.write("# Hello this is a cache for OT.EC malabar!\n")
     # From template factory rss use feedparser
     feed = feedparser.parse(rss_uri)
-    posts_to_print = []
-    posts_to_skip = []
+    filteredout_posts = []
+    matching_posts = []
     for post in feed.entries:
         ts = int(mktime(post.published_parsed))
         if not name +'-' in post.title: #check_outdated_delivery(post.title, rss_db, ts):
-                posts_to_skip.append(post)
+                filteredout_posts.append(post)
                 click.secho(post.title, fg='white')
         else:
                 dt = datetime.fromtimestamp(ts)
-                posts_to_print.append(post)
+                matching_posts.append(post)
                 click.secho(post.title + " <" + dt.isoformat() + ">", fg='yellow')
-
-    for item in posts_to_print:
-        ts = int(mktime(item.published_parsed))
-        if name in item.title:
-                dt = datetime.fromtimestamp(ts)
-                decompose_id = item.title.split(' ')[1]
-                click.secho(name + ' ⇒❯ ' + decompose_id + " <" + dt.isoformat() + ">" , fg='cyan', blink=True)
-                store_delivery_db(name, decompose_id, rss_db, ts)
+    matching_posts.sort(key=lambda item: item.published_parsed)
+    elected_delivery = matching_posts.pop()
+    ts = int(mktime(elected_delivery.published_parsed))
+    dt = datetime.fromtimestamp(ts)
+    decompose_id = elected_delivery.title.split(' ')[1]
+    click.secho(name + ' ⇒❯ ' + decompose_id + " <" + dt.isoformat() + ">" , fg='cyan', blink=True)
+    store_delivery_db(name, decompose_id, rss_db, ts)
