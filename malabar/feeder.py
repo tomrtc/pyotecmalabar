@@ -2,7 +2,6 @@
 # -*- encoding: utf-8 -*-
 
 
-import gruvi
 
 import click
 import feedparser
@@ -11,6 +10,7 @@ import os
 from time import mktime
 from datetime import datetime
 from string import Template
+import pprint
 
 def check_delivery(name,db):
         '''check availbal delivery'''
@@ -70,3 +70,6 @@ def fetch_ovf_from_rss(name, rss_uri, rss_db):
     decompose_id = elected_delivery.title.split(' ')[1]
     click.secho(name + ' ⇒❯ ' + decompose_id + " <" + dt.isoformat() + ">" , fg='cyan', blink=True)
     store_delivery_db(name, decompose_id, rss_db, ts)
+
+    pp = pprint.PrettyPrinter(indent=4)
+    pp.pprint(elected_delivery.links)
