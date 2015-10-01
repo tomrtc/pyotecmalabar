@@ -8,6 +8,9 @@ import click
 import feedparser
 import time
 import os
+from time import mktime
+from datetime import datetime
+from string import Template
 
 def check_delivery(name,db):
         '''check availbal delivery'''
@@ -17,24 +20,23 @@ def check_delivery(name,db):
                                 return True
                         return False
 
-def store_delivery_db(name,item,db):
+def store_delivery_db(name,item,db, ts):
         '''check availbal delivery'''
         with open(db, 'a') as database:
-                current_limit= round(time.time() * 1000)
                 if not check_delivery(name, db):
-                        database.write(name + "/" + item + "/"+ str(current_limit) + "\n")
+                        database.write(name + "/" + item + "/"+ str(ts) + "\n")
 
 
-def check_outdated_delivery(name,db):
+def check_outdated_delivery(name,db, ts):
         '''remembering past delivery  soso implementation'''
         with open(db, 'r') as database:
-                current_limit= round(time.time() * 1000)
+                current_limit= int(time.time())
                 tolerance = 360
                 for line in database:
                         if name in line:
                                 old_limit_as_string = line.split('/', 2)[2]
                                 old_limit = int(old_limit_as_string)
-                                if current_limit - old_limit > tolerance:
+                                if ts - old_limit > tolerance:
                                         return True
                                 return False
 
@@ -50,14 +52,19 @@ def fetch_ovf_from_rss(name, rss_uri, rss_db):
     posts_to_print = []
     posts_to_skip = []
     for post in feed.entries:
-        if check_outdated_delivery(post.title, rss_db):
-                posts_to_skip.append(post.title)
-                click.secho(post.title, fg='magenta')
+        ts = int(mktime(post.published_parsed))
+        if not name +'-' in post.title: #check_outdated_delivery(post.title, rss_db, ts):
+                posts_to_skip.append(post)
+                click.secho(post.title, fg='white')
         else:
-                posts_to_print.append(post.title)
-                click.secho(post.title, fg='yellow')
+                dt = datetime.fromtimestamp(ts)
+                posts_to_print.append(post)
+                click.secho(post.title + " <" + dt.isoformat() + ">", fg='yellow')
+
     for item in posts_to_print:
-            if name in item:
-                    click.secho(name + ' ⇒❯ ' + item, fg='cyan', blink=True)
-                    store_delivery_db(name,item, rss_db)
-                    break
+        ts = int(mktime(item.published_parsed))
+        if name in item.title:
+                dt = datetime.fromtimestamp(ts)
+                decompose_id = item.title.split(' ')[1]
+                click.secho(name + ' ⇒❯ ' + decompose_id + " <" + dt.isoformat() + ">" , fg='cyan', blink=True)
+                store_delivery_db(name, decompose_id, rss_db, ts)
