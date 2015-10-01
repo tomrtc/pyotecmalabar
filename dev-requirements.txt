@@ -1,0 +1,17 @@
+cffi==1.2.1
+click==5.1
+clickclick==0.12
+feedparser==5.2.1
+fibers==1.0.0
+flake8==2.4.1
+gruvi==0.10.2
+mccabe==0.3.1
+pbr==1.7.0
+pep8==1.5.7
+py==1.4.30
+pycparser==2.14
+pyflake==0.1.9
+pyflakes==0.9.2
+pytest==2.7.2
+pyuv==1.2.0
+six==1.9.0
