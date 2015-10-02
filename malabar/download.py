@@ -7,6 +7,7 @@ import click
 import os
 import requests
 import math
+from shutil import copyfileobj
 from posixpath import basename, dirname
 from urllib.parse import urlparse
 from multiprocessing import Process
@@ -16,7 +17,7 @@ def do_partialGET(wrk,url,fnp,size,fullsize):
     """Do HTTP GET with range header"""
     begin_position = wrk*size
     end_position = min(fullsize,((wrk + 1) * size) - 1)
-    temporary_file = open(fnp + str(wrk) , "wb")
+    temporary_file = open(fnp +'-'+ str(wrk) , "wb")
     req = requests.get(url,headers={'Range': 'bytes=%d-%d' % (begin_position, end_position)}, stream=True)
     current_position = begin_position
     while current_position < end_position:
@@ -53,7 +54,7 @@ def download_delivery(delivery, destination_directory):
     """Downloads a template delivery set of files  from CDA with concurrent threads"""
     if not os.path.exists(destination_directory):
         os.mkdir(destination_directory)
-    click.secho('downloading...' + str(os.cpu_count()) , fg='blue')
+
     checkURL('txt', delivery)
     checkURL('ovf', delivery)
     checkURL('mf', delivery)
@@ -79,8 +80,8 @@ def download_delivery(delivery, destination_directory):
     click.secho(txt_req.text , fg='blue')
     for worker in workers:
         worker.join()
-    vmdk_file = open(vmdk_file_name, 'wb')
-    for file_part in (vmdk_file_name+'.part'+str(i) for i in range(0,workers_number)):
-        shutil.copyfileobj(open(file_part, 'rb'), vmdk_file)
+    vmdk_file = open(vmdk_file_name, 'ab')
+    for file_part in (vmdk_file_name+'-'+str(i) for i in range(0,workers_number)):
+        copyfileobj(open(file_part, 'rb'), vmdk_file)
         os.remove(file_part)
     vmdk_file.close()
