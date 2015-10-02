@@ -11,8 +11,10 @@ from .config import CONFIGURATION_FILE_NAME
 from .config import RSS_DATABASE_FILE_PATH
 from .config import get_configuration
 from .config import create_default_config_file
+import pprint
 
 from .feeder import fetch_ovf_from_rss
+from .download import download_delivery
 
 
 def print_version(ctx, param, value):
@@ -60,8 +62,10 @@ def init(obj):
 def fetch_template(obj, name):
     '''fetch a named template'''
     click.secho('fetching ...', fg='blue')
-    fetch_ovf_from_rss(name, obj.getSettings('otec')['rss-uri'], RSS_DATABASE_FILE_PATH)
-
+    delivery = fetch_ovf_from_rss(name, obj.getSettings('otec')['rss-uri'], RSS_DATABASE_FILE_PATH)
+    pp = pprint.PrettyPrinter(indent=4)
+    pp.pprint(delivery)
+    download_delivery(delivery, "/tmp")
 
 
 @cli.command('esxi')

@@ -72,13 +72,18 @@ def fetch_ovf_from_rss(name, rss_uri, rss_db):
     decompose_id = elected_delivery.title.split(' ')[1]
     click.secho(name + ' ⇒❯ ' + decompose_id + " <" + dt.isoformat() + ">" , fg='cyan', blink=True)
     store_delivery_db(name, decompose_id, rss_db, ts)
-
-    pp = pprint.PrettyPrinter(indent=4)
-    pp.pprint(elected_delivery.links)
     response = requests.get(elected_delivery.links[0].href)
     soup = BeautifulSoup(response.content, "html.parser")
     links = soup.find_all('a')
+    result = {}
     for tag in links:
             link = tag.get('href',None)
             if link is not None and not ".." in link:
-                     click.secho("      ⇒❯" + elected_delivery.links[0].href + "/" + link, fg='cyan', blink=True)
+                     link_url = elected_delivery.links[0].href + "/" + link
+                     link_type = link.split('.')[-1]
+                     result[link_type] = link_url
+
+    if 'vmdk' in result and  'vmdk' in result and 'vmdk' in result and 'vmdk' in result:
+            return result
+    else:
+            return None
