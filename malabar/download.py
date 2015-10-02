@@ -6,9 +6,13 @@ import click
 
 import os
 import requests
+import math
+from posixpath import basename, dirname
+from urllib.parse import urlparse
+from multiprocessing import Process
 
 
-def do_partialGET(wkr,url,fnp,size,fullsize):
+def do_partialGET(wrk,url,fnp,size,fullsize):
     """Do HTTP GET with range header"""
     begin_position = wrk*size
     end_position = min(fullsize,((wrk + 1) * size) - 1)
@@ -34,14 +38,14 @@ def checkURL(file_type, delivery):
 
 def do_fullGET(file_type, delivery, destination_directory):
     """Download full file"""
-    target = os.path.join(destination_directory ,basename(urlparse(delivery[file_type])))
+    target = os.path.join(destination_directory ,basename(urlparse(delivery[file_type]).path))
     get_req = requests.get(delivery[file_type])
 
     if not (get_req.status_code == requests.codes.ok):
         click.secho( file_type + ' HTTP GET failure :' + str(get_req.status_code) , fg='red')
     else:
         with open(target, 'wb') as target_file:
-            target_file.write(r.content)
+            target_file.write(get_req.content)
             target_file.close()
         return get_req
 
@@ -55,11 +59,11 @@ def download_delivery(delivery, destination_directory):
     checkURL('mf', delivery)
     ## parralel stuff
     workers = []
-    workers_number = os.cpu_count() * 2
-    vmdk_file_name = os.path.join(destination_directory ,basename(urlparse(delivery['vmdk'])))
+    workers_number = os.cpu_count()
+    vmdk_file_name = os.path.join(destination_directory ,basename(urlparse(delivery['vmdk']).path))
     vmdk_head_req = checkURL('vmdk',delivery)
     if 'content-length' in vmdk_head_req.headers:
-        vmdk_size=int(r.headers['content-length'])
+        vmdk_size=int(vmdk_head_req.headers['content-length'])
         split_size=int(math.ceil(float(vmdk_size)/float(workers_number)))
         for idx in range(workers_number):
             worker = Process(target=do_partialGET,args=(idx, delivery['vmdk'], vmdk_file_name, split_size, vmdk_size))
