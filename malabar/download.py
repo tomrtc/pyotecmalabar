@@ -73,9 +73,10 @@ def download_delivery(delivery, destination_directory):
         click.secho(' HTTP failure : cannot get the vmdk size' , fg='red')
         exit()
     # Wait for all worker processes to finish
-    do_fullGET('txt', delivery, destination_directory)
+    txt_req = do_fullGET('txt', delivery, destination_directory)
     do_fullGET('ovf', delivery, destination_directory)
     do_fullGET('mf', delivery, destination_directory)
+    click.secho(txt_req.text , fg='blue')
     for worker in workers:
         worker.join()
     vmdk_file = open(vmdk_file_name, 'wb')

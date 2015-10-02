@@ -64,7 +64,7 @@ def fetch_template(obj, name):
     click.secho('fetching ...', fg='blue')
     delivery = fetch_ovf_from_rss(name, obj.getSettings('otec')['rss-uri'], RSS_DATABASE_FILE_PATH)
     pp = pprint.PrettyPrinter(indent=4)
-    pp.pprint(delivery)
+    #pp.pprint(delivery)
     download_delivery(delivery, "/tmp")
 
 
