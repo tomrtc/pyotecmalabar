@@ -113,6 +113,21 @@ def omi_channel(host, username,  password, port):
     connect.Disconnect(omi)
     click.secho("DisConnected of {}:".format(host), fg='red')
 
+def VM_map(connection):
+    ''''''
+    content = connection.RetrieveContent()
+    children = content.rootFolder.childEntity
+    for child in children:
+        if hasattr(child, 'vmFolder'):
+            datacenter = child
+        else:
+            # some other non-datacenter type object
+            continue
+
+        vm_folder = datacenter.vmFolder
+        vm_list = vm_folder.childEntity
+        for virtual_machine in vm_list:
+            yield virtual_machine.summary.config.name, virtual_machine.summary.config.uuid
 
 
 @cli.command('listvm')
@@ -120,4 +135,7 @@ def omi_channel(host, username,  password, port):
 def listvm(obj):
     '''List VMs'''
     with omi_channel(obj.getSettings('otec')['host'], obj.getSettings('otec')['user'], obj.getSettings('otec')['password'], 443) as channel:
+
         click.secho("list the availlable VM on {}:".format(obj.getSettings('otec')['host']), fg='magenta')
+        for vm_name, vm_uuid in VM_map(channel):
+             click.secho(" {} : {}".format(vm_name,vm_uuid), fg='magenta')
