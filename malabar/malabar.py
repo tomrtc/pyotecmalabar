@@ -12,10 +12,13 @@ from .config import RSS_DATABASE_FILE_PATH
 from .config import get_configuration
 from .config import create_default_config_file
 import pprint
+import contextlib
 
 from .feeder import fetch_ovf_from_rss
 from .download import download_delivery
 
+from pyVim import connect
+from pyVmomi import vmodl
 
 def print_version(ctx, param, value):
     if not value or ctx.resilient_parsing:
@@ -95,3 +98,26 @@ def esxi(obj, hostname, user, password, insecure):
     # while retProps.token:
     #     retProps = content.propertyCollector.ContinueRetrievePropertiesEx(token=retProps.token)
     #     totalProps += retProps.objects
+
+
+@contextlib.contextmanager
+def omi_channel(host, username,  password, port):
+    omi = connect.SmartConnect(
+            host=host,
+            user=username,
+            pwd=password,
+            port=port)
+    click.secho("current session id: {}".format(omi.content.sessionManager.currentSession.key), fg='red')
+    click.secho("Connected on {}:".format(host), fg='yellow')
+    yield omi
+    connect.Disconnect(omi)
+    click.secho("DisConnected of {}:".format(host), fg='red')
+
+
+
+@cli.command('listvm')
+@click.pass_obj
+def listvm(obj):
+    '''List VMs'''
+    with omi_channel(obj.getSettings('otec')['host'], obj.getSettings('otec')['user'], obj.getSettings('otec')['password'], 443) as channel:
+        click.secho("list the availlable VM on {}:".format(obj.getSettings('otec')['host']), fg='magenta')
