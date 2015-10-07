@@ -19,6 +19,7 @@ from .download import download_delivery
 
 from pyVim import connect
 from pyVmomi import vmodl
+from pyVmomi import vim
 
 def print_version(ctx, param, value):
     if not value or ctx.resilient_parsing:
@@ -113,21 +114,20 @@ def omi_channel(host, username,  password, port):
     connect.Disconnect(omi)
     click.secho("DisConnected of {}:".format(host), fg='red')
 
-def VM_map(connection):
-    ''''''
-    content = connection.RetrieveContent()
-    children = content.rootFolder.childEntity
-    for child in children:
-        if hasattr(child, 'vmFolder'):
-            datacenter = child
-        else:
-            # some other non-datacenter type object
-            continue
 
-        vm_folder = datacenter.vmFolder
-        vm_list = vm_folder.childEntity
-        for virtual_machine in vm_list:
-            yield virtual_machine.summary.config.name, virtual_machine.summary.config.uuid
+def dump(obj):
+   for attr in dir(obj):
+       if hasattr( obj, attr ):
+           print( "obj.%s = %s" % (attr, getattr(obj, attr)))
+
+
+
+
+def view(ccc):
+    '''view container'''
+    container = ccc.viewManager.CreateContainerView(ccc.rootFolder, [vim.VirtualMachine], True)
+    for c in container.view:
+        yield c.config.name, c.config.uuid
 
 
 @cli.command('listvm')
@@ -135,7 +135,7 @@ def VM_map(connection):
 def listvm(obj):
     '''List VMs'''
     with omi_channel(obj.getSettings('otec')['host'], obj.getSettings('otec')['user'], obj.getSettings('otec')['password'], 443) as channel:
-
-        click.secho("list the availlable VM on {}:".format(obj.getSettings('otec')['host']), fg='magenta')
-        for vm_name, vm_uuid in VM_map(channel):
-             click.secho(" {} : {}".format(vm_name,vm_uuid), fg='magenta')
+        content = channel.RetrieveContent()
+        click.secho("list the availlable VM on {}/{}:".format(obj.getSettings('otec')['host'], content.about.fullName), fg='magenta')
+        for vm_name, vm_uuid in view(content):
+              click.secho(" {} : {}".format(vm_name,vm_uuid), fg='magenta')
