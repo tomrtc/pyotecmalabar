@@ -114,21 +114,16 @@ def omi_channel(host, username,  password, port):
     connect.Disconnect(omi)
     click.secho("DisConnected of {}:".format(host), fg='red')
 
-
 def dump(obj):
    for attr in dir(obj):
        if hasattr( obj, attr ):
            print( "obj.%s = %s" % (attr, getattr(obj, attr)))
-
-
-
 
 def view(ccc):
     '''view container'''
     container = ccc.viewManager.CreateContainerView(ccc.rootFolder, [vim.VirtualMachine], True)
     for c in container.view:
         yield c.config.name, c.config.uuid
-
 
 @cli.command('listvm')
 @click.pass_obj
@@ -138,4 +133,27 @@ def listvm(obj):
         content = channel.RetrieveContent()
         click.secho("list the availlable VM on {}/{}:".format(obj.getSettings('otec')['host'], content.about.fullName), fg='magenta')
         for vm_name, vm_uuid in view(content):
-              click.secho(" {} : {}".format(vm_name,vm_uuid), fg='magenta')
+            click.secho(" {} : {}".format(vm_name, vm_uuid), fg='magenta')
+
+
+
+@cli.command('note')
+@click.argument('uuid')
+@click.argument('note')
+@click.pass_obj
+def notevm(obj, uuid, note):
+    '''ovf extract '''
+    with omi_channel(obj.getSettings('otec')['host'], obj.getSettings('otec')['user'], obj.getSettings('otec')['password'], 443) as channel:
+        vm = channel.content.searchIndex.FindByUuid(None, uuid, True)
+        if  vm:
+            click.secho("⇒❯ {}".format(vm.name), fg='magenta')
+            try:
+                spec = vim.vm.ConfigSpec()
+                spec.annotation = note
+                vm.ReconfigVM_Task(spec)
+            except  vmodl.MethodFault as vmomi_fault:
+                click.secho("WMvare error: {}".format(vmomi_fault.msg), fg='red')
+            except  Exception as std_exception:
+                click.secho("standard error: {}".format(str(std_exception)), fg='red')
+        else:
+            click.secho("No matching VM for {}".format(uuid), fg='red')
