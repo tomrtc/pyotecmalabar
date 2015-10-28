@@ -16,6 +16,7 @@ import contextlib
 
 from .feeder import fetch_ovf_from_rss
 from .download import download_delivery
+from .ovf import instanciate_ovf
 
 from pyVim import connect
 from pyVmomi import vmodl
@@ -125,6 +126,8 @@ def view(ccc):
     for c in container.view:
         yield c.config.name, c.config.uuid
 
+
+
 @cli.command('listvm')
 @click.pass_obj
 def listvm(obj):
@@ -136,6 +139,19 @@ def listvm(obj):
             click.secho(" {} : {}".format(vm_name, vm_uuid), fg='magenta')
 
 
+@cli.command('deployovf')
+@click.argument('name')
+@click.pass_obj
+def deployovf(obj, name):
+    '''List VMs'''
+    click.secho('fetching ...', fg='blue')
+    delivery = fetch_ovf_from_rss(name, obj.getSettings('otec')['rss-uri'], RSS_DATABASE_FILE_PATH)
+    pp = pprint.PrettyPrinter(indent=4)
+    download_delivery(delivery, "/tmp")
+    pp.pprint(delivery)
+    ##
+    with omi_channel(obj.getSettings('otec')['host'], obj.getSettings('otec')['user'], obj.getSettings('otec')['password'], 443) as channel:
+        instanciate_ovf(delivery, channel, obj.getSettings('otec')['host'])
 
 @cli.command('note')
 @click.argument('uuid')
