@@ -47,7 +47,7 @@ def check_outdated_delivery(name,db, ts):
 
 
 def fetch_ovf_from_rss(name, rss_uri, rss_db):
-    '''feedparsing and http-download'''
+    '''feedparsing and build url dictionary'''
     click.secho(rss_uri, fg='green')
     if not os.path.isfile(rss_db):
             with open(rss_db, 'wt') as database:
@@ -83,7 +83,7 @@ def fetch_ovf_from_rss(name, rss_uri, rss_db):
                      link_type = link.split('.')[-1]
                      result[link_type] = link_url
 
-    if 'vmdk' in result and  'vmdk' in result and 'vmdk' in result and 'vmdk' in result:
+    if 'vmdk' in result and  'txt' in result and 'ovf' in result and 'mf' in result:
             return result
     else:
             return None

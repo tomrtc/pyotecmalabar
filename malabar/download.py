@@ -12,6 +12,7 @@ from posixpath import basename, dirname
 from urllib.parse import urlparse
 from multiprocessing import Process
 
+HTTP_CHUNKED_SIZE = 4096
 
 def do_partialGET(wrk,url,fnp,size,fullsize):
     """Do HTTP GET with range header"""
@@ -21,7 +22,7 @@ def do_partialGET(wrk,url,fnp,size,fullsize):
     req = requests.get(url,headers={'Range': 'bytes=%d-%d' % (begin_position, end_position)}, stream=True)
     current_position = begin_position
     while current_position < end_position:
-        actual_size = min(4098,end_position-current_position+1)
+        actual_size = min(HTTP_CHUNKED_SIZE,end_position-current_position+1)
         buffer = req.raw.read(actual_size)
         temporary_file.write(buffer)
         temporary_file.flush()
@@ -40,6 +41,8 @@ def checkURL(file_type, delivery):
 def do_fullGET(file_type, delivery, destination_directory):
     """Download full file"""
     target = os.path.join(destination_directory ,basename(urlparse(delivery[file_type]).path))
+    # store target in delivery
+    delivery[file_type + "-cache"] = target
     get_req = requests.get(delivery[file_type])
 
     if not (get_req.status_code == requests.codes.ok):
@@ -85,3 +88,4 @@ def download_delivery(delivery, destination_directory):
         copyfileobj(open(file_part, 'rb'), vmdk_file)
         os.remove(file_part)
     vmdk_file.close()
+    delivery["vmdk-cache"] = vmdk_file_name
