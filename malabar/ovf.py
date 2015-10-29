@@ -42,7 +42,11 @@ def instanciate_ovf(delivery, omi, host):
     #pp.pprint(pdr)
     #pp.pprint(vhr)
     click.secho("Ovf parsing {} errors {} warnings.".format(len(pdr.error), len(pdr.warning)), fg='green')
+    for error in pdr.error:
+        click.secho("Ovf parsing error: {}".format(error.msg), fg='red')
     click.secho("Validate host  {} errors {} warnings.".format(len(vhr.error), len(vhr.warning)), fg='green')
+    for error in vhr.error:
+        click.secho("Validate host error: {}".format(error.msg), fg='red')
     vmdk_file.close()
 
 

@@ -13,6 +13,8 @@ from .config import get_configuration
 from .config import create_default_config_file
 import pprint
 import contextlib
+import pickle
+import os
 
 from .feeder import fetch_ovf_from_rss
 from .download import download_delivery
@@ -27,6 +29,27 @@ def print_version(ctx, param, value):
         return
     click.secho('Malabar {}'.format(malabar.__version__), fg='green')
     ctx.exit()
+def init_delivery(name, destination_directory):
+    base_dir = os.path.join(destination_directory, name)
+    if not os.path.exists(base_dir):
+        os.makedirs(base_dir)
+    return base_dir
+
+def save_delivery(delivery, name, base_directory):
+    pkl_file_name = os.path.join(base_directory, name + '.pkl')
+    with open(pkl_file_name, 'w+b') as output:
+        pickle.dump(delivery, output, pickle.HIGHEST_PROTOCOL)
+
+
+def get_delivery(name, base_directory):
+    """Read a delivery dictionary from disk."""
+    pkl_file_name = os.path.join(base_directory, name + '.pkl')
+    try:
+        with open(pkl_file_name, "r+b") as input:
+            delivery = pickle.load(input)
+    except FileNotFoundError:
+        delivery = {}
+    return delivery
 
 
 # CLI handling
@@ -67,10 +90,13 @@ def init(obj):
 def fetch_template(obj, name):
     '''fetch a named template'''
     click.secho('fetching ...', fg='blue')
+    delivery_directory = init_delivery(name, obj.getSettings('otec')['ovf-directory'])
     delivery = fetch_ovf_from_rss(name, obj.getSettings('otec')['rss-uri'], RSS_DATABASE_FILE_PATH)
     pp = pprint.PrettyPrinter(indent=4)
     #pp.pprint(delivery)
-    download_delivery(delivery, "/tmp")
+    download_delivery(delivery, delivery_directory)
+    save_delivery(delivery, name, delivery_directory)
+
 
 
 @cli.command('esxi')
@@ -105,20 +131,20 @@ def esxi(obj, hostname, user, password, insecure):
 @contextlib.contextmanager
 def omi_channel(host, username,  password, port):
     omi = connect.SmartConnect(
-            host=host,
-            user=username,
-            pwd=password,
-            port=port)
-    click.secho("current session id: {}".format(omi.content.sessionManager.currentSession.key), fg='red')
+        host=host,
+        user=username,
+        pwd=password,
+        port=port)
+    click.secho("current session id: {}".format(omi.content.sessionManager.currentSession.key), fg='yellow')
     click.secho("Connected on {}:".format(host), fg='yellow')
     yield omi
     connect.Disconnect(omi)
-    click.secho("DisConnected of {}:".format(host), fg='red')
+    click.secho("DisConnected of {}:".format(host), fg='yellow')
 
 def dump(obj):
    for attr in dir(obj):
-       if hasattr( obj, attr ):
-           print( "obj.%s = %s" % (attr, getattr(obj, attr)))
+       if hasattr(obj, attr):
+           print("obj.%s = %s" % (attr, getattr(obj, attr)))
 
 def view(ccc):
     '''view container'''
@@ -143,12 +169,12 @@ def listvm(obj):
 @click.argument('name')
 @click.pass_obj
 def deployovf(obj, name):
-    '''List VMs'''
-    click.secho('fetching ...', fg='blue')
-    delivery = fetch_ovf_from_rss(name, obj.getSettings('otec')['rss-uri'], RSS_DATABASE_FILE_PATH)
-    pp = pprint.PrettyPrinter(indent=4)
-    download_delivery(delivery, "/tmp")
-    pp.pprint(delivery)
+    '''Deploy VMs'''
+    click.secho('deploy ...', fg='blue')
+    delivery_directory = init_delivery(name, obj.getSettings('otec')['ovf-directory'])
+    delivery = get_delivery(name, delivery_directory)
+    if not delivery:
+        click.secho('fetch before : malabar fetch ' + name, fg='blue')
     ##
     with omi_channel(obj.getSettings('otec')['host'], obj.getSettings('otec')['user'], obj.getSettings('otec')['password'], 443) as channel:
         instanciate_ovf(delivery, channel, obj.getSettings('otec')['host'])
