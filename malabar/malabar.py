@@ -151,6 +151,14 @@ def view(ccc):
     for c in container.view:
         yield c.config.name, c.config.uuid
 
+def listhosts(ccc):
+    '''view container'''
+    pp = pprint.PrettyPrinter(indent=4)
+    container = ccc.viewManager.CreateContainerView(ccc.rootFolder, [vim.HostSystem], True)
+    for c in container.view:
+        return c
+
+
 
 
 @cli.command('listvm')
@@ -162,6 +170,7 @@ def listvm(obj):
         click.secho("list the availlable VM on {}/{}:".format(obj.getSettings('otec')['host'], content.about.fullName), fg='magenta')
         for vm_name, vm_uuid in view(content):
             click.secho(" {} : {}".format(vm_name, vm_uuid), fg='magenta')
+
 
 
 @cli.command('deployovf')
@@ -177,7 +186,17 @@ def deployovf(obj, name):
         exit(3)
     ##
     with omi_channel(obj.getSettings('otec')['host'], obj.getSettings('otec')['user'], obj.getSettings('otec')['password'], 443) as channel:
-        instanciate_ovf(delivery, channel, obj.getSettings('otec')['host'])
+        content = channel.RetrieveContent()
+        datacenter = content.rootFolder.childEntity[0]
+        datastore = datacenter.datastoreFolder.childEntity[0]
+        vmfolder = datacenter.vmFolder
+
+        host = listhosts(content)
+        resource_pools = datacenter.hostFolder.childEntity
+        resource_pool = resource_pools[0].resourcePool
+        #    click.secho(" {}".format(nh), fg='magenta')
+        instanciate_ovf(delivery, channel, host, vmfolder,
+                        resource_pool, datastore)
 
 @cli.command('note')
 @click.argument('uuid')
@@ -187,15 +206,15 @@ def notevm(obj, uuid, note):
     '''ovf extract '''
     with omi_channel(obj.getSettings('otec')['host'], obj.getSettings('otec')['user'], obj.getSettings('otec')['password'], 443) as channel:
         vm = channel.content.searchIndex.FindByUuid(None, uuid, True)
-        if  vm:
+        if vm:
             click.secho("⇒❯ {}".format(vm.name), fg='magenta')
             try:
                 spec = vim.vm.ConfigSpec()
                 spec.annotation = note
                 vm.ReconfigVM_Task(spec)
-            except  vmodl.MethodFault as vmomi_fault:
+            except vmodl.MethodFault as vmomi_fault:
                 click.secho("WMvare error: {}".format(vmomi_fault.msg), fg='red')
-            except  Exception as std_exception:
+            except Exception as std_exception:
                 click.secho("standard error: {}".format(str(std_exception)), fg='red')
         else:
             click.secho("No matching VM for {}".format(uuid), fg='red')

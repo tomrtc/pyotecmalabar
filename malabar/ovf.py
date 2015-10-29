@@ -11,15 +11,20 @@ from shutil import copyfileobj
 from posixpath import basename, dirname
 from urllib.parse import urlparse
 import pprint
-
+import time
 from .download import checkURL
 from .download import HTTP_CHUNKED_SIZE
 import pyVmomi
 
 
-def instanciate_ovf(delivery, omi, host):
+def instanciate_ovf(delivery, omi, host, folder, resource_pool, datastore):
     """instanciate a template delivery set of files  from CDA to ESXi"""
-
+    pp = pprint.PrettyPrinter(indent=4)
+    pp.pprint(delivery)
+    pp.pprint(host)
+    pp.pprint(folder)
+    pp.pprint(resource_pool)
+    pp.pprint(datastore)
     try:
         with  open(delivery["ovf-cache"]) as ovf_file:
             ovf_descriptor = ovf_file.read()
@@ -37,20 +42,40 @@ def instanciate_ovf(delivery, omi, host):
     click.secho("Deploy {} with {} on {}:".format(delivery["ovf-cache"], delivery["vmdk-cache"], host), fg='green')
 
     click.secho("VMDK Size {} with {} steps.".format(vmdk_size, step_size), fg='green')
-    pp = pprint.PrettyPrinter(indent=4)
-    #pp.pprint(delivery)
-    #pp.pprint(pdr)
-    #pp.pprint(vhr)
+
     click.secho("Ovf parsing {} errors {} warnings.".format(len(pdr.error), len(pdr.warning)), fg='green')
     for error in pdr.error:
         click.secho("Ovf parsing error: {}".format(error.msg), fg='red')
     click.secho("Validate host  {} errors {} warnings.".format(len(vhr.error), len(vhr.warning)), fg='green')
     for error in vhr.error:
         click.secho("Validate host error: {}".format(error.msg), fg='red')
+    parameters = pyVmomi.vim.OvfManager.CreateImportSpecParams()
+    isr = ovf_manager.CreateImportSpec(ovf_descriptor,
+                                               resource_pool,
+                                               datastore,
+                                               parameters)
+    click.secho("Ovf Import Specification  {} errors {} warnings.".format(len(isr.error), len(isr.warning)), fg='green')
+    for error in isr.error:
+        click.secho("Ovf Import Specification error: {}".format(error.msg), fg='red')
+    for warning in isr.warning:
+        click.secho("Ovf Import Specification warning: {}".format(warning.msg), fg='red')
+    pp.pprint(isr)
+    try:
+        nfc_lease = resource_pool.ImportVApp(isr.importSpec)
+    except Exception as std_exception:
+        click.secho("standard error: {}".format(str(std_exception)), fg='red')
+        pp.pprint(std_exception)
+        exit(4)
+
+    while nfc_lease.state != 'ready':
+        time.sleep(0.1)
+    for dev_url in nfc_lease.info.deviceUrl:
+        click.secho("NFC target URL  {}".format(dev_url), fg='green')
+    nfc_lease.Abort()
     vmdk_file.close()
 
 
-   # for dev_url in lease.info.deviceUrl:
+   #
    #          filename = dev_url.targetId
    #          hostname = urlparse(s._proxy.binding.url).hostname
    #          upload_url = dev_url.ulr.replace("*", hostname)
@@ -80,11 +105,7 @@ def instanciate_ovf(delivery, omi, host):
    #      s.disconnect()
 
 
-#     spec_params = ovf_manager.CreateImportSpecParams()
-#     import_spec = ovf_manager.CreateImportSpec(ovf_descriptor,
-#                                            objs["resource pool"],
-#                                            objs["datastore"],
-#                                            spec_params)
+#
 # parse_descriptor_result = content.
 #         validate_host_result = content.ovfManager.
 #                 ovf_descriptor,
@@ -94,17 +115,12 @@ def instanciate_ovf(delivery, omi, host):
 #                 ovf_descriptor,
 #                 resource_pool,
 #                 datastore,
-#                 pyVmomi.vim.OvfManager.CreateImportSpecParams())
-#         import_spec = create_import_spec_result.importSpec
-#         http_nfc_lease = resource_pool.ImportVApp(
-#                 import_spec,
-#                 folder,
-#                 host)
+#                 ))
+#
 # # TODO: Make http requests as specified by the http_nfc_lease:
 
 #         # * Wait until http_nfc_lease.state changes to ready.
-#         while http_nfc_lease.state != 'ready':
-#             time.sleep(0.5)
+#
 
 #         # * Make HTTP Post requests to the URLS provided in the http_nfc_lease
 #         #   with the disk contents, etc. as data.
@@ -121,7 +137,7 @@ def instanciate_ovf(delivery, omi, host):
 #             requests.post(url, data)
 
 #         #TODO: replace the following with http_nfc_lease.Complete()
-#         http_nfc_lease.Abort()
+#
 #     vmdk_file.close()
 #  objs = get_objects(si, args)
 
@@ -147,3 +163,41 @@ def instanciate_ovf(delivery, omi, host):
 #         elif (lease.state == vim.HttpNfcLease.State.error):
 #             print "Lease error: " + lease.state.error
 #             exit(1)
+  # Create the objects needed for the import spec
+  # datacenter_list = si.content.rootFolder.childEntity
+  # dc_obj = datacenter_list[0]
+
+  # datastore_list = dc_obj.datastoreFolder.childEntity
+  # ds_obj = datastore_list[0]
+
+  # network_list = dc_obj.networkFolder.childEntity
+  # net_obj = network_list[0]
+
+  # resource_pool = dc_obj.hostFolder.childEntity[0].resourcePool
+
+
+
+  # # Now we create the import spec
+  # manager = si.content.ovfManager
+  # isparams = vim.OvfManager.CreateImportSpecParams()
+
+  # import_spec = manager.CreateImportSpec(ovfd,
+  #                                        resource_pool,
+  #                                        ds_obj,
+  #                                        isparams)
+
+  # print import_spec.importSpec
+
+  # lease = resource_pool.ImportVApp(import_spec.importSpec)
+
+  # print lease.state
+
+  # while (True):
+  #   if (lease.state == vim.HttpNfcLease.State.ready):
+  #     print "Ready to rock and roll"
+  #     return 0
+  #   elif (lease.state == vim.HttpNfcLease.State.error):
+  #     # Print some error message out if you feel so inclined.
+  #     print "Failed"
+  #     print lease.error
+  #     sys.exit(1)
