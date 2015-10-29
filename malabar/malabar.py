@@ -92,8 +92,7 @@ def fetch_template(obj, name):
     click.secho('fetching ...', fg='blue')
     delivery_directory = init_delivery(name, obj.getSettings('otec')['ovf-directory'])
     delivery = fetch_ovf_from_rss(name, obj.getSettings('otec')['rss-uri'], RSS_DATABASE_FILE_PATH)
-    pp = pprint.PrettyPrinter(indent=4)
-    #pp.pprint(delivery)
+
     download_delivery(delivery, delivery_directory)
     save_delivery(delivery, name, delivery_directory)
 
@@ -174,7 +173,8 @@ def deployovf(obj, name):
     delivery_directory = init_delivery(name, obj.getSettings('otec')['ovf-directory'])
     delivery = get_delivery(name, delivery_directory)
     if not delivery:
-        click.secho('fetch before : malabar fetch ' + name, fg='blue')
+        click.secho('fetch before : malabar fetch ' + name, fg='red')
+        exit(3)
     ##
     with omi_channel(obj.getSettings('otec')['host'], obj.getSettings('otec')['user'], obj.getSettings('otec')['password'], 443) as channel:
         instanciate_ovf(delivery, channel, obj.getSettings('otec')['host'])

@@ -24,12 +24,12 @@ def instanciate_ovf(delivery, omi, host):
         with  open(delivery["ovf-cache"]) as ovf_file:
             ovf_descriptor = ovf_file.read()
     except:
-        click.secho('Local file errot :' + delivery["ovf-cache"] + ' ', fg='red')
+        click.secho('Local file error :' + delivery["ovf-cache"] + ' ', fg='red')
         exit(2)
 
     vmdk_file = open(delivery["vmdk-cache"], 'rb')
     vmdk_size = os.path.getsize(delivery["vmdk-cache"])
-    step_size = int(math.ceil(float(vmdk_size)/float(1000)))
+    step_size = int(math.ceil(float(vmdk_size)/float(HTTP_CHUNKED_SIZE * 100)))
 
     ovf_manager = omi.content.ovfManager
     pdr = ovf_manager.ParseDescriptor(ovf_descriptor, pyVmomi.vim.OvfManager.ParseDescriptorParams())
@@ -38,7 +38,7 @@ def instanciate_ovf(delivery, omi, host):
 
     click.secho("VMDK Size {} with {} steps.".format(vmdk_size, step_size), fg='green')
     pp = pprint.PrettyPrinter(indent=4)
-    pp.pprint(delivery)
+    #pp.pprint(delivery)
     #pp.pprint(pdr)
     #pp.pprint(vhr)
     click.secho("Ovf parsing {} errors {} warnings.".format(len(pdr.error), len(pdr.warning)), fg='green')
