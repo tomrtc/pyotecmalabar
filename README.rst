@@ -32,3 +32,5 @@ To run the all tests run ::
 
     py.test
 
+ pip3 install --proxy "http://global.proxy.alcatel-lucent.com:8000" -r dev-requirements.txt
+

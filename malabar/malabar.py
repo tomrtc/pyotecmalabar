@@ -15,6 +15,7 @@ import pprint
 import contextlib
 import pickle
 import os
+import ssl
 
 from .feeder import fetch_ovf_from_rss
 from .download import download_delivery
@@ -126,6 +127,9 @@ def esxi(obj, hostname, user, password, insecure):
     #     retProps = content.propertyCollector.ContinueRetrievePropertiesEx(token=retProps.token)
     #     totalProps += retProps.objects
 
+malabarSSLctx = ssl.create_default_context()
+malabarSSLctx.check_hostname = False
+malabarSSLctx.verify_mode = ssl.CERT_NONE
 
 @contextlib.contextmanager
 def omi_channel(host, username,  password, port):
@@ -133,7 +137,8 @@ def omi_channel(host, username,  password, port):
         host=host,
         user=username,
         pwd=password,
-        port=port)
+        port=port,
+        sslContext=malabarSSLctx)
     click.secho("current session id: {}".format(omi.content.sessionManager.currentSession.key), fg='yellow')
     click.secho("Connected on {}:".format(host), fg='yellow')
     yield omi
