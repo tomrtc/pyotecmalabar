@@ -158,6 +158,13 @@ def listhosts(ccc):
     for c in container.view:
         return c
 
+def listnetwork(ccc):
+    '''view container'''
+    pp = pprint.PrettyPrinter(indent=4)
+    container = ccc.viewManager.CreateContainerView(ccc.rootFolder, [vim.Network], True)
+    for c in container.view:
+        return c
+
 
 
 
@@ -190,13 +197,13 @@ def deployovf(obj, name):
         datacenter = content.rootFolder.childEntity[0]
         datastore = datacenter.datastoreFolder.childEntity[0]
         vmfolder = datacenter.vmFolder
-
+        otec_network = listnetwork(content)
         host = listhosts(content)
         resource_pools = datacenter.hostFolder.childEntity
         resource_pool = resource_pools[0].resourcePool
         #    click.secho(" {}".format(nh), fg='magenta')
         instanciate_ovf(delivery, channel, host, vmfolder,
-                        resource_pool, datastore)
+                        resource_pool, datastore, otec_network)
 
 @cli.command('note')
 @click.argument('uuid')

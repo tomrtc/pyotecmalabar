@@ -17,7 +17,7 @@ from .download import HTTP_CHUNKED_SIZE
 import pyVmomi
 
 
-def instanciate_ovf(delivery, omi, host, folder, resource_pool, datastore):
+def instanciate_ovf(delivery, omi, host, folder, resource_pool, datastore, otec_network):
     """instanciate a template delivery set of files  from CDA to ESXi"""
     pp = pprint.PrettyPrinter(indent=4)
     pp.pprint(delivery)
@@ -50,6 +50,11 @@ def instanciate_ovf(delivery, omi, host, folder, resource_pool, datastore):
     for error in vhr.error:
         click.secho("Validate host error: {}".format(error.msg), fg='red')
     parameters = pyVmomi.vim.OvfManager.CreateImportSpecParams()
+    parameters.entityName = "rto"
+    #pp.pprint(parameters)
+    #parameters.networkMapping = {name:"otec-net", network: host }
+    parameters.networkMapping.append(pyVmomi.vim.OvfManager.NetworkMapping(name='otec-net', network=otec_network))
+    #pp.pprint(parameters.networkMapping)
     isr = ovf_manager.CreateImportSpec(ovf_descriptor,
                                                resource_pool,
                                                datastore,
@@ -59,12 +64,12 @@ def instanciate_ovf(delivery, omi, host, folder, resource_pool, datastore):
         click.secho("Ovf Import Specification error: {}".format(error.msg), fg='red')
     for warning in isr.warning:
         click.secho("Ovf Import Specification warning: {}".format(warning.msg), fg='red')
-    pp.pprint(isr)
+    #pp.pprint(isr)
     try:
         nfc_lease = resource_pool.ImportVApp(isr.importSpec)
     except Exception as std_exception:
         click.secho("standard error: {}".format(str(std_exception)), fg='red')
-        pp.pprint(std_exception)
+        #pp.pprint(std_exception)
         exit(4)
 
     while nfc_lease.state != 'ready':
