@@ -202,8 +202,15 @@ def deployovf(obj, name):
         resource_pools = datacenter.hostFolder.childEntity
         resource_pool = resource_pools[0].resourcePool
         #    click.secho(" {}".format(nh), fg='magenta')
-        instanciate_ovf(delivery, channel, host, vmfolder,
-                        resource_pool, datastore, otec_network)
+        try:
+            instanciate_ovf(delivery, channel, host, vmfolder,
+            resource_pool, datastore, otec_network)
+
+        except vmodl.MethodFault as vmomi_fault:
+            click.secho("WMvare error: {}".format(vmomi_fault.msg), fg='red')
+        except Exception as std_exception:
+            click.secho("standard error: {}".format(str(std_exception)), fg='red')
+
 
 @cli.command('note')
 @click.argument('uuid')
@@ -219,6 +226,33 @@ def notevm(obj, uuid, note):
                 spec = vim.vm.ConfigSpec()
                 spec.annotation = note
                 vm.ReconfigVM_Task(spec)
+            except vmodl.MethodFault as vmomi_fault:
+                click.secho("WMvare error: {}".format(vmomi_fault.msg), fg='red')
+            except Exception as std_exception:
+                click.secho("standard error: {}".format(str(std_exception)), fg='red')
+        else:
+            click.secho("No matching VM for {}".format(uuid), fg='red')
+
+@cli.command('vmmac')
+@click.argument('uuid')
+@click.pass_obj
+def vmmac(obj, uuid):
+    '''ovf extract '''
+    pp = pprint.PrettyPrinter(indent=4)
+    with omi_channel(obj.getSettings('otec')['host'], obj.getSettings('otec')['user'], obj.getSettings('otec')['password'], 443) as channel:
+        vm = channel.content.searchIndex.FindByUuid(None, uuid, True)
+        if vm:
+            try:
+                nics = [dev for dev in vm.config.hardware.device
+                        if isinstance(dev, vim.vm.device.VirtualEthernetCard)]
+                for nic in nics:
+                     click.secho("{} ⇒❯ Nic {} on {} ".format(vm.name, nic.macAddress, nic.backing.network.name), fg='magenta')
+                disks = [d for d in vm.config.hardware.device
+                         if isinstance(d, vim.vm.device.VirtualDisk) and
+                         isinstance(d.backing, vim.vm.device.VirtualDisk.FlatVer2BackingInfo)]
+                #pp.pprint(disks)
+                for disk in disks:
+                    click.secho("{} ⇒❯ Disk {} on {} ".format(vm.name, disk.deviceInfo.label, disk.backing.fileName), fg='magenta')
             except vmodl.MethodFault as vmomi_fault:
                 click.secho("WMvare error: {}".format(vmomi_fault.msg), fg='red')
             except Exception as std_exception:

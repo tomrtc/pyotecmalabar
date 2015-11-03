@@ -3,16 +3,10 @@
 
 
 import click
-
 import os
-import requests
 import math
-from shutil import copyfileobj
-from posixpath import basename, dirname
-from urllib.parse import urlparse
 import pprint
 import time
-from .download import checkURL
 from .download import HTTP_CHUNKED_SIZE
 import pyVmomi
 
@@ -56,21 +50,17 @@ def instanciate_ovf(delivery, omi, host, folder, resource_pool, datastore, otec_
     parameters.networkMapping.append(pyVmomi.vim.OvfManager.NetworkMapping(name='otec-net', network=otec_network))
     #pp.pprint(parameters.networkMapping)
     isr = ovf_manager.CreateImportSpec(ovf_descriptor,
-                                               resource_pool,
-                                               datastore,
-                                               parameters)
+                                       resource_pool,
+                                       datastore,
+                                       parameters)
     click.secho("Ovf Import Specification  {} errors {} warnings.".format(len(isr.error), len(isr.warning)), fg='green')
     for error in isr.error:
         click.secho("Ovf Import Specification error: {}".format(error.msg), fg='red')
     for warning in isr.warning:
         click.secho("Ovf Import Specification warning: {}".format(warning.msg), fg='red')
-    #pp.pprint(isr)
-    try:
-        nfc_lease = resource_pool.ImportVApp(isr.importSpec)
-    except Exception as std_exception:
-        click.secho("standard error: {}".format(str(std_exception)), fg='red')
-        #pp.pprint(std_exception)
-        exit(4)
+
+    nfc_lease = resource_pool.ImportVApp(isr.importSpec, folder, host)
+
 
     while nfc_lease.state != 'ready':
         time.sleep(0.1)
