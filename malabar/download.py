@@ -7,7 +7,9 @@ import click
 import os
 import requests
 import math
-
+import hashlib
+import configparser
+import itertools
 from shutil import copyfileobj
 from posixpath import basename
 from urllib.parse import urlparse
@@ -52,6 +54,9 @@ def do_fullGET(file_type, delivery, destination_directory):
     else:
         with open(target, 'wb') as target_file:
             target_file.write(get_req.content)
+            import hashlib
+            sha1Context = hashlib.sha1(get_req.content)
+            delivery[file_type + "-sha1"] = sha1Context.hexdigest()
             target_file.close()
         return get_req
 
@@ -93,3 +98,14 @@ def download_delivery(delivery, destination_directory):
         os.remove(file_part)
     vmdk_file.close()
     delivery["vmdk-cache"] = vmdk_file_name
+    blksize = HTTP_CHUNKED_SIZE * 32
+    sha1Context = hashlib.sha1()
+    with open(vmdk_file_name, 'rb') as vmdk:
+        chunk = vmdk.read(blksize)
+        while len(chunk) > 0:
+            sha1Context.update(chunk)
+            chunk = vmdk.read(blksize)
+    delivery["vmdk-sha1"] = sha1Context.hexdigest()
+    mf = configparser.SafeConfigParser()
+    mf.read_file(itertools.chain(['[MF]'], open(delivery["mf-cache"])))
+    print(mf.items('MF'))
