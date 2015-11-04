@@ -89,10 +89,8 @@ def init(obj):
 @click.pass_obj
 def fetch_template(obj, name):
     '''fetch a named template'''
-    click.secho('fetching ...', fg='blue')
     delivery_directory = init_delivery(name, obj.getSettings('otec')['ovf-directory'])
     delivery = fetch_ovf_from_rss(name, obj.getSettings('otec')['rss-uri'], RSS_DATABASE_FILE_PATH)
-
     download_delivery(delivery, delivery_directory)
     save_delivery(delivery, name, delivery_directory)
 
@@ -109,22 +107,7 @@ def fetch_template(obj, name):
 @click.pass_obj
 def esxi(obj, hostname, user, password, insecure):
     '''Connect to host with API.'''
-    print(hostname)
     click.secho('fetch', fg='green')
-
-    # Build a view and get basic properties for all Virtual Machines
-    #objView = content.viewManager.CreateContainerView(content.rootFolder, viewType, True)
-    #tSpec = vim.PropertyCollector.TraversalSpec(name='tSpecName', path='view', skip=False, type=vim.view.ContainerView)
-    # pSpec = vim.PropertyCollector.PropertySpec(all=False, pathSet=props, type=specType)
-    # oSpec = vim.PropertyCollector.ObjectSpec(obj=objView, selectSet=[tSpec], skip=False)
-    # pfSpec = vim.PropertyCollector.FilterSpec(objectSet=[oSpec], propSet=[pSpec], reportMissingObjectsInResults=False)
-    # retOptions = vim.PropertyCollector.RetrieveOptions()
-    # totalProps = []
-    # retProps = content.propertyCollector.RetrievePropertiesEx(specSet=[pfSpec], options=retOptions)
-    # totalProps += retProps.objects
-    # while retProps.token:
-    #     retProps = content.propertyCollector.ContinueRetrievePropertiesEx(token=retProps.token)
-    #     totalProps += retProps.objects
 
 
 @contextlib.contextmanager
@@ -166,8 +149,6 @@ def listnetwork(ccc):
         return c
 
 
-
-
 @cli.command('listvm')
 @click.pass_obj
 def listvm(obj):
@@ -177,7 +158,6 @@ def listvm(obj):
         click.secho("list the availlable VM on {}/{}:".format(obj.getSettings('otec')['host'], content.about.fullName), fg='magenta')
         for vm_name, vm_uuid in view(content):
             click.secho(" {} : {}".format(vm_name, vm_uuid), fg='magenta')
-
 
 
 @cli.command('deployovf')

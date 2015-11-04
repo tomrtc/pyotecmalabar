@@ -10,6 +10,8 @@ import math
 import hashlib
 import configparser
 import itertools
+import re
+
 from shutil import copyfileobj
 from posixpath import basename
 from urllib.parse import urlparse
@@ -60,7 +62,20 @@ def do_fullGET(file_type, delivery, destination_directory):
             target_file.close()
         return get_req
 
+def checkSHA1(delivery):
+    """Verify SHA1 values against computed ones."""
+    mf = configparser.SafeConfigParser()
+    mf.read_file(itertools.chain(['[MF]'], open(delivery["mf-cache"])))
+    for name, value in mf.items('MF'):
+        file_type = re.match('sha1\(.*\.(\w+)\)', name).group(1)
+        if delivery[file_type + '-sha1']:
+            if delivery[file_type + '-sha1'] == value:
+                click.secho(name + ": verified." , fg='green')
+            else:
+                click.secho("{}: error({} != {} ).".format(name, value, delivery[file_type + '-sha1']) , fg='red')
 
+                return False
+    return True
 
 def download_delivery(delivery, destination_directory):
     """Downloads a template delivery set of files  from CDA with concurrent threads"""
@@ -92,7 +107,8 @@ def download_delivery(delivery, destination_directory):
     click.secho(txt_req.text , fg='blue')
     for worker in workers:
         worker.join()
-    vmdk_file = open(vmdk_file_name, 'ab')
+    vmdk_file = open(vmdk_file_name, 'wb')
+    vmdk_file.truncate()
     for file_part in (vmdk_file_name+'-'+str(i) for i in range(0,workers_number)):
         copyfileobj(open(file_part, 'rb'), vmdk_file)
         os.remove(file_part)
@@ -106,6 +122,4 @@ def download_delivery(delivery, destination_directory):
             sha1Context.update(chunk)
             chunk = vmdk.read(blksize)
     delivery["vmdk-sha1"] = sha1Context.hexdigest()
-    mf = configparser.SafeConfigParser()
-    mf.read_file(itertools.chain(['[MF]'], open(delivery["mf-cache"])))
-    print(mf.items('MF'))
+    return checkSHA1(delivery)
