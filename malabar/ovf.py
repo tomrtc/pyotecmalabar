@@ -14,11 +14,11 @@ import pyVmomi
 def instanciate_ovf(delivery, omi, host, folder, resource_pool, datastore, otec_network):
     """instanciate a template delivery set of files  from CDA to ESXi"""
     pp = pprint.PrettyPrinter(indent=4)
-    pp.pprint(delivery)
     pp.pprint(host)
     pp.pprint(folder)
     pp.pprint(resource_pool)
     pp.pprint(datastore)
+    pp.pprint(otec_network)
     try:
         with  open(delivery["ovf-cache"]) as ovf_file:
             ovf_descriptor = ovf_file.read()
@@ -31,7 +31,9 @@ def instanciate_ovf(delivery, omi, host, folder, resource_pool, datastore, otec_
     step_size = int(math.ceil(float(vmdk_size)/float(HTTP_CHUNKED_SIZE * 100)))
 
     ovf_manager = omi.content.ovfManager
-    pdr = ovf_manager.ParseDescriptor(ovf_descriptor, pyVmomi.vim.OvfManager.ParseDescriptorParams())
+    pdp =  pyVmomi.vim.OvfManager.ParseDescriptorParams()
+    pp.pprint(pdp)
+    pdr = ovf_manager.ParseDescriptor(ovf_descriptor, pdp)
     vhr = ovf_manager.ValidateHost(ovf_descriptor, host, pyVmomi.vim.OvfManager.ValidateHostParams())
     click.secho("Deploy {} with {} on {}:".format(delivery["ovf-cache"], delivery["vmdk-cache"], host), fg='green')
 
@@ -44,11 +46,14 @@ def instanciate_ovf(delivery, omi, host, folder, resource_pool, datastore, otec_
     for error in vhr.error:
         click.secho("Validate host error: {}".format(error.msg), fg='red')
     parameters = pyVmomi.vim.OvfManager.CreateImportSpecParams()
-    parameters.entityName = "rto"
-    #pp.pprint(parameters)
-    #parameters.networkMapping = {name:"otec-net", network: host }
+    parameters.entityName = "rto2"
+    parameters.locale = "US"
+    parameters.diskProvisioning = "thin"
+
+    #parameters.networkMapping = {name:"otec-net", network: host }https://bull6-07/folder/Debian%208.1%20%28Otec%2dtest%29/Debian%208%2e1%20%28Otec%2dtest%29%2evmdk?dcPath=bull6&dsName=DS%255fBULL6%252d05%255fLOCAL
+
     parameters.networkMapping.append(pyVmomi.vim.OvfManager.NetworkMapping(name='otec-net', network=otec_network))
-    #pp.pprint(parameters.networkMapping)
+    pp.pprint(parameters)
     isr = ovf_manager.CreateImportSpec(ovf_descriptor,
                                        resource_pool,
                                        datastore,
@@ -59,13 +64,23 @@ def instanciate_ovf(delivery, omi, host, folder, resource_pool, datastore, otec_
     for warning in isr.warning:
         click.secho("Ovf Import Specification warning: {}".format(warning.msg), fg='red')
 
+    pp.pprint(isr.importSpec)
+
+    pp.pprint(isr.importSpec.configSpec.deviceChange[0].device)
     nfc_lease = resource_pool.ImportVApp(isr.importSpec, folder, host)
-
-
-    while nfc_lease.state != 'ready':
+    while nfc_lease.state == 'initializing':
         time.sleep(0.1)
+    if  nfc_lease.state == 'error':
+         click.secho("ImportVM error: {}".format(nfc_lease.error.msg), fg='red')
+         return
+
+    pp.pprint(nfc_lease.state)
+    pp.pprint(nfc_lease.error)
+
+
     for dev_url in nfc_lease.info.deviceUrl:
         click.secho("NFC target URL  {}".format(dev_url), fg='green')
+
     nfc_lease.Abort()
     vmdk_file.close()
 

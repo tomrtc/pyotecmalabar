@@ -139,7 +139,7 @@ def listhosts(ccc):
     pp = pprint.PrettyPrinter(indent=4)
     container = ccc.viewManager.CreateContainerView(ccc.rootFolder, [vim.HostSystem], True)
     for c in container.view:
-        return c
+        yield c
 
 def listnetwork(ccc):
     '''view container'''
@@ -175,16 +175,19 @@ def deployovf(obj, name):
     with omi_channel(obj.getSettings('otec')['host'], obj.getSettings('otec')['user'], obj.getSettings('otec')['password'], 443) as channel:
         content = channel.RetrieveContent()
         datacenter = content.rootFolder.childEntity[0]
-        datastore = datacenter.datastoreFolder.childEntity[0]
+        datastore = datacenter.datastoreFolder.childEntity[1]
         vmfolder = datacenter.vmFolder
         otec_network = listnetwork(content)
-        host = listhosts(content)
+        gg = listhosts(content)
+        host1 = next(gg)
+        host2 = next(gg)
+
         resource_pools = datacenter.hostFolder.childEntity
-        resource_pool = resource_pools[0].resourcePool
+        resource_pool = resource_pools[1].resourcePool
         #    click.secho(" {}".format(nh), fg='magenta')
         try:
-            instanciate_ovf(delivery, channel, host, vmfolder,
-            resource_pool, datastore, otec_network)
+            instanciate_ovf(delivery, channel, host2, vmfolder,
+                            resource_pool, datastore, otec_network)
 
         except vmodl.MethodFault as vmomi_fault:
             click.secho("WMvare error: {}".format(vmomi_fault.msg), fg='red')
