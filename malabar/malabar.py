@@ -162,8 +162,9 @@ def listvm(obj):
 
 @cli.command('deployovf')
 @click.argument('name')
+@click.argument('vmname')
 @click.pass_obj
-def deployovf(obj, name):
+def deployovf(obj, name, vmname):
     '''Deploy VMs'''
     click.secho('deploy ...', fg='blue')
     delivery_directory = init_delivery(name, obj.getSettings('otec')['ovf-directory'])
@@ -186,7 +187,7 @@ def deployovf(obj, name):
         resource_pool = resource_pools[1].resourcePool
         #    click.secho(" {}".format(nh), fg='magenta')
         try:
-            instanciate_ovf(delivery, channel, host2, vmfolder,
+            instanciate_ovf(delivery, vmname, channel, host2, vmfolder,
                             resource_pool, datastore, otec_network)
 
         except vmodl.MethodFault as vmomi_fault:

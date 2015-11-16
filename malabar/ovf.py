@@ -20,24 +20,25 @@ def readVMDK(vmdkfile, filesize, lease):
     step_size = int(math.ceil(float(filesize)/float(HTTP_CHUNKED_SIZE * 100)))
     step = 0
     last_refresh = HTTP_CHUNKED_SIZE * 100
-    click.secho("VMDK Size {} with {} steps.".format(filesize, step_size), fg='green')
-    while True:
-        blk_size = min(HTTP_CHUNKED_SIZE,  filesize - current + 1)
-        data = vmdkfile.read(blk_size)
-        if not data:
-            break
-        current = current + blk_size
-        last_refresh = last_refresh - blk_size
-        if last_refresh < 0:
-            last_refresh = HTTP_CHUNKED_SIZE * 100
-            step = step + 1
-            progress = int(math.ceil(float(step - 1)/float(step_size) * 100.0))
-            click.secho("{} / {} steps {} %.".format(step, step_size, progress), fg='green')
-            lease.Progress(progress)
+    with click.progressbar(length=step_size,
+                           label='Upload template') as bar:
+        while True:
+            blk_size = min(HTTP_CHUNKED_SIZE,  filesize - current + 1)
+            data = vmdkfile.read(blk_size)
+            if not data:
+                break
+            current = current + blk_size
+            last_refresh = last_refresh - blk_size
+            if last_refresh < 0:
+                last_refresh = HTTP_CHUNKED_SIZE * 100
+                step = step + 1
+                progress = int(math.ceil(float(step - 1)/float(step_size) * 100.0))
+                bar.update(1)
+                lease.Progress(progress)
             #lease.Progress(11)
-        yield data
+            yield data
 
-def instanciate_ovf(delivery, omi, host, folder, resource_pool, datastore, otec_network):
+def instanciate_ovf(delivery, vmname, omi, host, folder, resource_pool, datastore, otec_network):
     """instanciate a template delivery set of files  from CDA to ESXi"""
     pp = pprint.PrettyPrinter(indent=4)
 
@@ -62,7 +63,7 @@ def instanciate_ovf(delivery, omi, host, folder, resource_pool, datastore, otec_
     for error in vhr.error:
         click.secho("Validate host error: {}".format(error.msg), fg='red')
     parameters = pyVmomi.vim.OvfManager.CreateImportSpecParams()
-    parameters.entityName = "rto13"
+    parameters.entityName = vmname
     parameters.locale = "US"
     parameters.diskProvisioning = "thin"
     parameters.networkMapping.append(pyVmomi.vim.OvfManager.NetworkMapping(name='otec-net', network=otec_network))
@@ -77,14 +78,20 @@ def instanciate_ovf(delivery, omi, host, folder, resource_pool, datastore, otec_
         click.secho("Ovf Import Specification warning: {}".format(warning.msg), fg='red')
 
     nfc_lease = resource_pool.ImportVApp(isr.importSpec, folder, host)
-    while nfc_lease.state == 'initializing':
-        time.sleep(0.1)
+    with click.progressbar(length=100,
+                           label='Initializing ') as bar:
+        nv=0
+        while nfc_lease.state == 'initializing':
+            time.sleep(0.1)
+            v = nv
+            nv = nfc_lease.initializeProgress
+            bar.update(nv - v)
     if  nfc_lease.state == 'error':
          click.secho("ImportVM error: {}".format(nfc_lease.error.msg), fg='red')
          return
 
     for dev_url in nfc_lease.info.deviceUrl:
-        click.secho("NFC target URL  {}".format(dev_url), fg='green')
+        #click.secho("NFC target URL  {}".format(dev_url), fg='green')
         if dev_url.disk:
                 diskurl = dev_url.url
 
