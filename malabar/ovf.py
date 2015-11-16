@@ -106,7 +106,7 @@ def instanciate_ovf(delivery, vmname, omi, host, folder, resource_pool, datastor
     stream = StreamingIterator(vmdk_size, readVMDK(vmdk_file, vmdk_size, nfc_lease))
     post_req = requests.post(diskurl, headers=headers, verify=False, data=stream)
 
-
     nfc_lease.Complete()
     #nfc_lease.Abort()
     vmdk_file.close()
+    return nfc_lease.info.entity
