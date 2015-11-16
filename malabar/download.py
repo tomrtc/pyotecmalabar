@@ -17,7 +17,7 @@ from posixpath import basename
 from urllib.parse import urlparse
 from multiprocessing import Process
 
-HTTP_CHUNKED_SIZE = 4096
+HTTP_CHUNKED_SIZE = 8192
 
 
 def do_partialGET(wrk, url, fnp, size, fullsize):
