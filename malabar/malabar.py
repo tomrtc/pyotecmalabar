@@ -17,6 +17,8 @@ import pickle
 import os
 import ssl
 
+import time
+
 from .feeder import fetch_ovf_from_rss
 from .download import download_delivery
 from .ovf import instanciate_ovf
@@ -90,10 +92,8 @@ def init(obj):
 @click.pass_obj
 def fetch_template(obj, name):
     '''fetch a named template'''
-    click.secho('fetching ...', fg='blue')
     delivery_directory = init_delivery(name, obj.getSettings('otec')['ovf-directory'])
     delivery = fetch_ovf_from_rss(name, obj.getSettings('otec')['rss-uri'], RSS_DATABASE_FILE_PATH)
-
     download_delivery(delivery, delivery_directory)
     save_delivery(delivery, name, delivery_directory)
 
@@ -110,22 +110,54 @@ def fetch_template(obj, name):
 @click.pass_obj
 def esxi(obj, hostname, user, password, insecure):
     '''Connect to host with API.'''
-    print(hostname)
     click.secho('fetch', fg='green')
 
-    # Build a view and get basic properties for all Virtual Machines
-    #objView = content.viewManager.CreateContainerView(content.rootFolder, viewType, True)
-    #tSpec = vim.PropertyCollector.TraversalSpec(name='tSpecName', path='view', skip=False, type=vim.view.ContainerView)
-    # pSpec = vim.PropertyCollector.PropertySpec(all=False, pathSet=props, type=specType)
-    # oSpec = vim.PropertyCollector.ObjectSpec(obj=objView, selectSet=[tSpec], skip=False)
-    # pfSpec = vim.PropertyCollector.FilterSpec(objectSet=[oSpec], propSet=[pSpec], reportMissingObjectsInResults=False)
-    # retOptions = vim.PropertyCollector.RetrieveOptions()
-    # totalProps = []
-    # retProps = content.propertyCollector.RetrievePropertiesEx(specSet=[pfSpec], options=retOptions)
-    # totalProps += retProps.objects
-    # while retProps.token:
-    #     retProps = content.propertyCollector.ContinueRetrievePropertiesEx(token=retProps.token)
-    #     totalProps += retProps.objects
+def wait_for_tasks(service_instance, tasks):
+    """Given the service instance si and tasks, it returns after all the
+   tasks are complete
+   """
+    property_collector = service_instance.content.propertyCollector
+    task_list = [str(task) for task in tasks]
+    # Create filter
+    obj_specs = [vmodl.query.PropertyCollector.ObjectSpec(obj=task)
+                 for task in tasks]
+    property_spec = vmodl.query.PropertyCollector.PropertySpec(type=vim.Task,
+                                                               pathSet=[],
+                                                               all=True)
+    filter_spec = vmodl.query.PropertyCollector.FilterSpec()
+    filter_spec.objectSet = obj_specs
+    filter_spec.propSet = [property_spec]
+    pcfilter = property_collector.CreateFilter(filter_spec, True)
+    try:
+        version, state = None, None
+        # Loop looking for updates till the state moves to a completed state.
+        while len(task_list):
+            update = property_collector.WaitForUpdates(version)
+            for filter_set in update.filterSet:
+                for obj_set in filter_set.objectSet:
+                    task = obj_set.obj
+                    for change in obj_set.changeSet:
+                        if change.name == 'info':
+                            state = change.val.state
+                        elif change.name == 'info.state':
+                            state = change.val
+                        else:
+                            continue
+
+                        if not str(task) in task_list:
+                            continue
+
+                        if state == vim.TaskInfo.State.success:
+                            # Remove task from taskList
+                            task_list.remove(str(task))
+                        elif state == vim.TaskInfo.State.error:
+                            raise task.info.error
+            # Move to next version
+            version = update.version
+    finally:
+        if pcfilter:
+            pcfilter.Destroy()
+
 
 malabarSSLctx = ssl.create_default_context()
 malabarSSLctx.check_hostname = False
@@ -161,9 +193,14 @@ def listhosts(ccc):
     pp = pprint.PrettyPrinter(indent=4)
     container = ccc.viewManager.CreateContainerView(ccc.rootFolder, [vim.HostSystem], True)
     for c in container.view:
+        yield c
+
+def listnetwork(ccc):
+    '''view container'''
+    pp = pprint.PrettyPrinter(indent=4)
+    container = ccc.viewManager.CreateContainerView(ccc.rootFolder, [vim.Network], True)
+    for c in container.view:
         return c
-
-
 
 
 @cli.command('listvm')
@@ -177,11 +214,11 @@ def listvm(obj):
             click.secho(" {} : {}".format(vm_name, vm_uuid), fg='magenta')
 
 
-
 @cli.command('deployovf')
 @click.argument('name')
+@click.argument('vmname')
 @click.pass_obj
-def deployovf(obj, name):
+def deployovf(obj, name, vmname):
     '''Deploy VMs'''
     click.secho('deploy ...', fg='blue')
     delivery_directory = init_delivery(name, obj.getSettings('otec')['ovf-directory'])
@@ -193,15 +230,43 @@ def deployovf(obj, name):
     with omi_channel(obj.getSettings('otec')['host'], obj.getSettings('otec')['user'], obj.getSettings('otec')['password'], 443) as channel:
         content = channel.RetrieveContent()
         datacenter = content.rootFolder.childEntity[0]
-        datastore = datacenter.datastoreFolder.childEntity[0]
+        datastore = datacenter.datastoreFolder.childEntity[1]
         vmfolder = datacenter.vmFolder
+        otec_network = listnetwork(content)
+        gg = listhosts(content)
+        host1 = next(gg)
+        host2 = next(gg)
 
-        host = listhosts(content)
         resource_pools = datacenter.hostFolder.childEntity
-        resource_pool = resource_pools[0].resourcePool
+        resource_pool = resource_pools[1].resourcePool
         #    click.secho(" {}".format(nh), fg='magenta')
-        instanciate_ovf(delivery, channel, host, vmfolder,
-                        resource_pool, datastore)
+        try:
+            vm = instanciate_ovf(delivery, vmname, channel, host2, vmfolder,
+                            resource_pool, datastore, otec_network)
+            click.secho(" {} : {}".format(vm.config.name, vm.config.uuid), fg='magenta')
+            # Take cold snapshot
+            task = vm.CreateSnapshot('malabar-ovf',
+                               'malabar automatic snapshot after ovf deploy.',
+                               False, # cold snapshot
+                               False) # quiesce doesn't matter, VM is off
+            with click.progressbar(length=100,
+                           label='Snapshot and template') as bar:
+                nv= 0
+                while task.info.state == 'running':
+                    time.sleep(0.1)
+                    v = nv
+                    nv = task.info.progress
+                    if nv is None:
+                        break
+                    bar.update(nv - v)
+            task = vm.MarkAsTemplate()
+
+        except vmodl.MethodFault as vmomi_fault:
+            click.secho("WMvare error: {}".format(vmomi_fault.msg), fg='red')
+        except Exception as std_exception:
+            click.secho("standard error: {}".format(str(std_exception)), fg='red')
+
+
 
 @cli.command('note')
 @click.argument('uuid')
@@ -217,6 +282,33 @@ def notevm(obj, uuid, note):
                 spec = vim.vm.ConfigSpec()
                 spec.annotation = note
                 vm.ReconfigVM_Task(spec)
+            except vmodl.MethodFault as vmomi_fault:
+                click.secho("WMvare error: {}".format(vmomi_fault.msg), fg='red')
+            except Exception as std_exception:
+                click.secho("standard error: {}".format(str(std_exception)), fg='red')
+        else:
+            click.secho("No matching VM for {}".format(uuid), fg='red')
+
+@cli.command('vmmac')
+@click.argument('uuid')
+@click.pass_obj
+def vmmac(obj, uuid):
+    '''ovf extract '''
+    pp = pprint.PrettyPrinter(indent=4)
+    with omi_channel(obj.getSettings('otec')['host'], obj.getSettings('otec')['user'], obj.getSettings('otec')['password'], 443) as channel:
+        vm = channel.content.searchIndex.FindByUuid(None, uuid, True)
+        if vm:
+            try:
+                nics = [dev for dev in vm.config.hardware.device
+                        if isinstance(dev, vim.vm.device.VirtualEthernetCard)]
+                for nic in nics:
+                     click.secho("{} ⇒❯ Nic {} on {} ".format(vm.name, nic.macAddress, nic.backing.network.name), fg='magenta')
+                disks = [d for d in vm.config.hardware.device
+                         if isinstance(d, vim.vm.device.VirtualDisk) and
+                         isinstance(d.backing, vim.vm.device.VirtualDisk.FlatVer2BackingInfo)]
+                #pp.pprint(disks)
+                for disk in disks:
+                    click.secho("{} ⇒❯ Disk {} on {} ".format(vm.name, disk.deviceInfo.label, disk.backing.fileName), fg='magenta')
             except vmodl.MethodFault as vmomi_fault:
                 click.secho("WMvare error: {}".format(vmomi_fault.msg), fg='red')
             except Exception as std_exception:

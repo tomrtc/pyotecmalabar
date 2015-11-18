@@ -48,7 +48,7 @@ def check_outdated_delivery(name,db, ts):
 
 def fetch_ovf_from_rss(name, rss_uri, rss_db):
     '''feedparsing and build url dictionary'''
-    click.secho(rss_uri, fg='green')
+    click.secho("fetch from RSS feed: {} ...".format(rss_uri), fg='green')
     if not os.path.isfile(rss_db):
             with open(rss_db, 'wt') as database:
                     database.write("# Hello this is a cache for OT.EC malabar!\n")
@@ -60,7 +60,6 @@ def fetch_ovf_from_rss(name, rss_uri, rss_db):
         ts = int(mktime(post.published_parsed))
         if not name +'-' in post.title: #check_outdated_delivery(post.title, rss_db, ts):
                 filteredout_posts.append(post)
-                click.secho(post.title, fg='white')
         else:
                 dt = datetime.fromtimestamp(ts)
                 matching_posts.append(post)

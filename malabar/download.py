@@ -7,13 +7,17 @@ import click
 import os
 import requests
 import math
+import hashlib
+import configparser
+import itertools
+import re
 
 from shutil import copyfileobj
 from posixpath import basename
 from urllib.parse import urlparse
 from multiprocessing import Process
 
-HTTP_CHUNKED_SIZE = 4096
+HTTP_CHUNKED_SIZE = 8192
 
 
 def do_partialGET(wrk, url, fnp, size, fullsize):
@@ -52,10 +56,26 @@ def do_fullGET(file_type, delivery, destination_directory):
     else:
         with open(target, 'wb') as target_file:
             target_file.write(get_req.content)
+            import hashlib
+            sha1Context = hashlib.sha1(get_req.content)
+            delivery[file_type + "-sha1"] = sha1Context.hexdigest()
             target_file.close()
         return get_req
 
+def checkSHA1(delivery):
+    """Verify SHA1 values against computed ones."""
+    mf = configparser.SafeConfigParser()
+    mf.read_file(itertools.chain(['[MF]'], open(delivery["mf-cache"])))
+    for name, value in mf.items('MF'):
+        file_type = re.match('sha1\(.*\.(\w+)\)', name).group(1)
+        if delivery[file_type + '-sha1']:
+            if delivery[file_type + '-sha1'] == value:
+                click.secho(name + ": verified." , fg='green')
+            else:
+                click.secho("{}: error({} != {} ).".format(name, value, delivery[file_type + '-sha1']) , fg='red')
 
+                return False
+    return True
 
 def download_delivery(delivery, destination_directory):
     """Downloads a template delivery set of files  from CDA with concurrent threads"""
@@ -87,9 +107,19 @@ def download_delivery(delivery, destination_directory):
     click.secho(txt_req.text , fg='blue')
     for worker in workers:
         worker.join()
-    vmdk_file = open(vmdk_file_name, 'ab')
+    vmdk_file = open(vmdk_file_name, 'wb')
+    vmdk_file.truncate()
     for file_part in (vmdk_file_name+'-'+str(i) for i in range(0,workers_number)):
         copyfileobj(open(file_part, 'rb'), vmdk_file)
         os.remove(file_part)
     vmdk_file.close()
     delivery["vmdk-cache"] = vmdk_file_name
+    blksize = HTTP_CHUNKED_SIZE * 32
+    sha1Context = hashlib.sha1()
+    with open(vmdk_file_name, 'rb') as vmdk:
+        chunk = vmdk.read(blksize)
+        while len(chunk) > 0:
+            sha1Context.update(chunk)
+            chunk = vmdk.read(blksize)
+    delivery["vmdk-sha1"] = sha1Context.hexdigest()
+    return checkSHA1(delivery)
