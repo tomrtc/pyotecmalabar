@@ -15,6 +15,7 @@ pytest==2.8.2 # Updated from 2.7.2
 -e git+https://github.com/vmware/pyvmomi.git#egg=pyvmomi
 requests==2.8.1
 requests-futures==0.9.5
+requests-toolbelt==0.4.0
 six==1.10.0 # Updated from 1.9.0
 # Generated with piprot 0.9.4
 # Your requirements are 947 days out of date
