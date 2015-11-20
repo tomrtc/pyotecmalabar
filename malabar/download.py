@@ -110,12 +110,25 @@ def CheckDelivery(file_type, delivery):
     return checkURL(delivery[file_type])
 
 
+def sha1chunkfile(file):
+    """ compute sha1 with a chunk/update"""
+    blksize = HTTP_CHUNKED_SIZE * 32
+    sha1 = hashlib.sha1()
+    with open(file, 'rb') as vmdk:
+        chunk = vmdk.read(blksize)
+        while len(chunk) > 0:
+            sha1.update(chunk)
+            chunk = vmdk.read(blksize)
+
+    return sha1
+
+
 def download_delivery(delivery, dir_target):
     """Downloads a template delivery set of files  from CDA with
     concurrent threads"""
     if not os.path.exists(dir_target):
         os.mkdir(dir_target)
-    pp = pprint.PrettyPrinter(indent=4)
+    #  pp = pprint.PrettyPrinter(indent=4)
     CheckDelivery('txt', delivery)
     CheckDelivery('ovf', delivery)
     CheckDelivery('mf', delivery)
@@ -146,21 +159,14 @@ def download_delivery(delivery, dir_target):
     vmdk_file_name = os.path.splitext(delivery["vmdk-cache"][0])[0]
     vmdk_file = open(vmdk_file_name, 'wb')
     vmdk_file.truncate()
-    sha1whole = hashlib.sha1()
+
     for vmdk_cache_part in delivery["vmdk-cache"]:
-        blksize = HTTP_CHUNKED_SIZE * 32
-        sha1Context = hashlib.sha1()
-        pp.pprint(vmdk_cache_part)
-        with open(vmdk_cache_part, 'rb') as vmdk:
-            chunk = vmdk.read(blksize)
-            vmdk_file.write(chunk)
-            while len(chunk) > 0:
-                sha1Context.update(chunk)
-                sha1whole.update(chunk)
-                chunk = vmdk.read(blksize)
-        ext = basename(vmdk_cache_part).split('.')[-1]
-        delivery[ext + '-sha1'] = sha1Context.hexdigest()
-    delivery['vmdk-sha1'] = sha1whole.hexdigest()
-    delivery["vmdk-cache"] = vmdk_file_name
+        copyfileobj(open(vmdk_cache_part, 'rb'), vmdk_file)
     vmdk_file.close()
+    vmdk_file = open(vmdk_file_name, 'rb')
+    for vmdk_cache_part in delivery["vmdk-cache"]:
+        ext = basename(vmdk_cache_part).split('.')[-1]
+        delivery[ext + '-sha1'] = sha1chunkfile(vmdk_cache_part).hexdigest()
+    delivery['vmdk-sha1'] = sha1chunkfile(vmdk_file_name).hexdigest()
+    delivery["vmdk-cache"] = vmdk_file_name
     return checkSHA1(delivery)

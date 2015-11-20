@@ -170,8 +170,8 @@ def omi_channel(host, username,  password, port):
         host=host,
         user=username,
         pwd=password,
-        port=port,
-        sslContext=malabarSSLctx)
+        port=port)
+#        sslContext=malabarSSLctx)
     click.secho("current session id: {}".format(omi.content.sessionManager.currentSession.key), fg='yellow')
     click.secho("Connected on {}:".format(host), fg='yellow')
     yield omi
@@ -220,7 +220,7 @@ def listvm(obj):
         click.secho("list the availlable VM on {}/{}:".format(obj.getSettings('otec')['host'],
                                                               content.about.fullName), fg='magenta')
         for vm_name, vm_uuid in view(content):
-            click.secho(" {} : {}".format(vm_name, vm_uuid), fg='magenta')
+            click.secho("{} : {}".format(vm_name, vm_uuid), fg='magenta')
 
 
 @cli.command('deployovf')
@@ -254,8 +254,8 @@ def deployovf(obj, name, vmname):
         try:
             vm = instanciate_ovf(delivery, vmname, channel, host2, vmfolder,
                                  resource_pool, datastore, otec_network)
-            click.secho(" {} : {}".format(vm.config.name, vm.config.uuid),
-                        fg='magenta')
+            click.secho("{} : {}".format(vm.config.name, vm.config.uuid),
+                        fg='green')
             # Take cold snapshot
             task = vm.CreateSnapshot('malabar-ovf',
                                      'malabar automatic snapshot after ovf deploy.',
@@ -272,7 +272,9 @@ def deployovf(obj, name, vmname):
                         break
                     bar.update(nv - v)
             task = vm.MarkAsTemplate()
-
+            spec = vim.vm.ConfigSpec()
+            spec.annotation = delivery['info']['template']['name']
+            vm.ReconfigVM_Task(spec)
         except vmodl.MethodFault as vmomi_fault:
             click.secho("WMvare error: {}".format(vmomi_fault.msg),
                         fg='red')
@@ -322,7 +324,7 @@ def vmmac(obj, uuid):
                 nics = [dev for dev in vm.config.hardware.device
                         if isinstance(dev, vim.vm.device.VirtualEthernetCard)]
                 for nic in nics:
-                    click.secho("{} ⇒❯ Nic {} on {} ".format(vm.name, nic.macAddress, nic.backing.network.name), fg='magenta')
+                    click.secho("{} ⇒❯ Nic {} on {} ".format(vm.name, nic.macAddress, nic.backing.network.name), fg='green')
                 disks = [d for d in vm.config.hardware.device
                          if isinstance(d, vim.vm.device.VirtualDisk) and
                          isinstance(d.backing, vim.vm.device.VirtualDisk.FlatVer2BackingInfo)]
@@ -331,7 +333,7 @@ def vmmac(obj, uuid):
                     click.secho("{} ⇒❯ Disk {} on {} ".format(vm.name,
                                                               disk.deviceInfo.label,
                                                               disk.backing.fileName),
-                                fg='magenta')
+                                fg='green')
             except vmodl.MethodFault as vmomi_fault:
                 click.secho("WMvare error: {}".format(vmomi_fault.msg),
                             fg='red')
