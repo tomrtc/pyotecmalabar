@@ -55,11 +55,18 @@ def instanciate_ovf(delivery, vmname, omi, host, folder, resource_pool, datastor
     pdp = pyVmomi.vim.OvfManager.ParseDescriptorParams()
     pdr = ovf_manager.ParseDescriptor(ovf_descriptor, pdp)
     vhr = ovf_manager.ValidateHost(ovf_descriptor, host, pyVmomi.vim.OvfManager.ValidateHostParams())
-    click.secho("Deploy {} with {} on {}:".format(delivery["ovf-cache"], delivery["vmdk-cache"], host), fg='green')
-    click.secho("Ovf parsing {} errors {} warnings.".format(len(pdr.error), len(pdr.warning)), fg='green')
+    click.secho("Deploy {} with {} on {}:".format(delivery["ovf-cache"],
+                                                  delivery["vmdk-cache"],
+                                                  host),
+                fg='green')
+    click.secho("Ovf parsing {} errors {} warnings.".format(len(pdr.error),
+                                                            len(pdr.warning)),
+                fg='green')
     for error in pdr.error:
         click.secho("Ovf parsing error: {}".format(error.msg), fg='red')
-    click.secho("Validate host  {} errors {} warnings.".format(len(vhr.error), len(vhr.warning)), fg='green')
+    click.secho("Validate host  {} errors {} warnings.".format(len(vhr.error),
+                                                               len(vhr.warning)),
+                fg='green')
     for error in vhr.error:
         click.secho("Validate host error: {}".format(error.msg), fg='red')
     parameters = pyVmomi.vim.OvfManager.CreateImportSpecParams()

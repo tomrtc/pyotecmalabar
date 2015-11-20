@@ -163,6 +163,7 @@ malabarSSLctx = ssl.create_default_context()
 malabarSSLctx.check_hostname = False
 malabarSSLctx.verify_mode = ssl.CERT_NONE
 
+
 @contextlib.contextmanager
 def omi_channel(host, username,  password, port):
     omi = connect.SmartConnect(
@@ -177,28 +178,33 @@ def omi_channel(host, username,  password, port):
     connect.Disconnect(omi)
     click.secho("DisConnected of {}:".format(host), fg='yellow')
 
+
 def dump(obj):
-   for attr in dir(obj):
-       if hasattr(obj, attr):
-           print("obj.%s = %s" % (attr, getattr(obj, attr)))
+    for attr in dir(obj):
+        if hasattr(obj, attr):
+            print("obj.%s = %s" % (attr, getattr(obj, attr)))
+
 
 def view(ccc):
     '''view container'''
-    container = ccc.viewManager.CreateContainerView(ccc.rootFolder, [vim.VirtualMachine], True)
+    container = ccc.viewManager.CreateContainerView(ccc.rootFolder,
+                                                    [vim.VirtualMachine], True)
     for c in container.view:
         yield c.config.name, c.config.uuid
 
+
 def listhosts(ccc):
     '''view container'''
-    pp = pprint.PrettyPrinter(indent=4)
-    container = ccc.viewManager.CreateContainerView(ccc.rootFolder, [vim.HostSystem], True)
+    container = ccc.viewManager.CreateContainerView(ccc.rootFolder,
+                                                    [vim.HostSystem], True)
     for c in container.view:
         yield c
 
+
 def listnetwork(ccc):
     '''view container'''
-    pp = pprint.PrettyPrinter(indent=4)
-    container = ccc.viewManager.CreateContainerView(ccc.rootFolder, [vim.Network], True)
+    container = ccc.viewManager.CreateContainerView(ccc.rootFolder,
+                                                    [vim.Network], True)
     for c in container.view:
         return c
 
@@ -207,9 +213,12 @@ def listnetwork(ccc):
 @click.pass_obj
 def listvm(obj):
     '''List VMs'''
-    with omi_channel(obj.getSettings('otec')['host'], obj.getSettings('otec')['user'], obj.getSettings('otec')['password'], 443) as channel:
+    with omi_channel(obj.getSettings('otec')['host'],
+                     obj.getSettings('otec')['user'],
+                     obj.getSettings('otec')['password'], 443) as channel:
         content = channel.RetrieveContent()
-        click.secho("list the availlable VM on {}/{}:".format(obj.getSettings('otec')['host'], content.about.fullName), fg='magenta')
+        click.secho("list the availlable VM on {}/{}:".format(obj.getSettings('otec')['host'],
+                                                              content.about.fullName), fg='magenta')
         for vm_name, vm_uuid in view(content):
             click.secho(" {} : {}".format(vm_name, vm_uuid), fg='magenta')
 
@@ -227,7 +236,9 @@ def deployovf(obj, name, vmname):
         click.secho('fetch before : malabar fetch ' + name, fg='red')
         exit(3)
     ##
-    with omi_channel(obj.getSettings('otec')['host'], obj.getSettings('otec')['user'], obj.getSettings('otec')['password'], 443) as channel:
+    with omi_channel(obj.getSettings('otec')['host'],
+                     obj.getSettings('otec')['user'],
+                     obj.getSettings('otec')['password'], 443) as channel:
         content = channel.RetrieveContent()
         datacenter = content.rootFolder.childEntity[0]
         datastore = datacenter.datastoreFolder.childEntity[1]
@@ -242,16 +253,17 @@ def deployovf(obj, name, vmname):
         #    click.secho(" {}".format(nh), fg='magenta')
         try:
             vm = instanciate_ovf(delivery, vmname, channel, host2, vmfolder,
-                            resource_pool, datastore, otec_network)
-            click.secho(" {} : {}".format(vm.config.name, vm.config.uuid), fg='magenta')
+                                 resource_pool, datastore, otec_network)
+            click.secho(" {} : {}".format(vm.config.name, vm.config.uuid),
+                        fg='magenta')
             # Take cold snapshot
             task = vm.CreateSnapshot('malabar-ovf',
-                               'malabar automatic snapshot after ovf deploy.',
-                               False, # cold snapshot
-                               False) # quiesce doesn't matter, VM is off
+                                     'malabar automatic snapshot after ovf deploy.',
+                                     False,  # cold self. = apshot
+                                     False)  # quiesce doesn't matter, VM is off
             with click.progressbar(length=100,
-                           label='Snapshot and template') as bar:
-                nv= 0
+                                   label='Snapshot and template') as bar:
+                nv = 0
                 while task.info.state == 'running':
                     time.sleep(0.1)
                     v = nv
@@ -262,10 +274,11 @@ def deployovf(obj, name, vmname):
             task = vm.MarkAsTemplate()
 
         except vmodl.MethodFault as vmomi_fault:
-            click.secho("WMvare error: {}".format(vmomi_fault.msg), fg='red')
+            click.secho("WMvare error: {}".format(vmomi_fault.msg),
+                        fg='red')
         except Exception as std_exception:
-            click.secho("standard error: {}".format(str(std_exception)), fg='red')
-
+            click.secho("standard error: {}".format(str(std_exception)),
+                        fg='red')
 
 
 @cli.command('note')
@@ -274,7 +287,9 @@ def deployovf(obj, name, vmname):
 @click.pass_obj
 def notevm(obj, uuid, note):
     '''ovf extract '''
-    with omi_channel(obj.getSettings('otec')['host'], obj.getSettings('otec')['user'], obj.getSettings('otec')['password'], 443) as channel:
+    with omi_channel(obj.getSettings('otec')['host'],
+                     obj.getSettings('otec')['user'],
+                     obj.getSettings('otec')['password'], 443) as channel:
         vm = channel.content.searchIndex.FindByUuid(None, uuid, True)
         if vm:
             click.secho("⇒❯ {}".format(vm.name), fg='magenta')
@@ -283,35 +298,46 @@ def notevm(obj, uuid, note):
                 spec.annotation = note
                 vm.ReconfigVM_Task(spec)
             except vmodl.MethodFault as vmomi_fault:
-                click.secho("WMvare error: {}".format(vmomi_fault.msg), fg='red')
+                click.secho("WMvare error: {}".format(vmomi_fault.msg),
+                            fg='red')
             except Exception as std_exception:
-                click.secho("standard error: {}".format(str(std_exception)), fg='red')
+                click.secho("standard error: {}".format(str(std_exception)),
+                            fg='red')
         else:
             click.secho("No matching VM for {}".format(uuid), fg='red')
+
 
 @cli.command('vmmac')
 @click.argument('uuid')
 @click.pass_obj
 def vmmac(obj, uuid):
     '''ovf extract '''
-    pp = pprint.PrettyPrinter(indent=4)
-    with omi_channel(obj.getSettings('otec')['host'], obj.getSettings('otec')['user'], obj.getSettings('otec')['password'], 443) as channel:
+    # pp = pprint.PrettyPrinter(indent=4)
+    with omi_channel(obj.getSettings('otec')['host'],
+                     obj.getSettings('otec')['user'],
+                     obj.getSettings('otec')['password'], 443) as channel:
         vm = channel.content.searchIndex.FindByUuid(None, uuid, True)
         if vm:
             try:
                 nics = [dev for dev in vm.config.hardware.device
                         if isinstance(dev, vim.vm.device.VirtualEthernetCard)]
                 for nic in nics:
-                     click.secho("{} ⇒❯ Nic {} on {} ".format(vm.name, nic.macAddress, nic.backing.network.name), fg='magenta')
+                    click.secho("{} ⇒❯ Nic {} on {} ".format(vm.name, nic.macAddress, nic.backing.network.name), fg='magenta')
                 disks = [d for d in vm.config.hardware.device
                          if isinstance(d, vim.vm.device.VirtualDisk) and
                          isinstance(d.backing, vim.vm.device.VirtualDisk.FlatVer2BackingInfo)]
-                #pp.pprint(disks)
+                #  pp.pprint(disks)
                 for disk in disks:
-                    click.secho("{} ⇒❯ Disk {} on {} ".format(vm.name, disk.deviceInfo.label, disk.backing.fileName), fg='magenta')
+                    click.secho("{} ⇒❯ Disk {} on {} ".format(vm.name,
+                                                              disk.deviceInfo.label,
+                                                              disk.backing.fileName),
+                                fg='magenta')
             except vmodl.MethodFault as vmomi_fault:
-                click.secho("WMvare error: {}".format(vmomi_fault.msg), fg='red')
+                click.secho("WMvare error: {}".format(vmomi_fault.msg),
+                            fg='red')
             except Exception as std_exception:
-                click.secho("standard error: {}".format(str(std_exception)), fg='red')
+                click.secho("standard error: {}".format(str(std_exception)),
+                            fg='red')
         else:
-            click.secho("No matching VM for {}".format(uuid), fg='red')
+            click.secho("No matching VM for {}".format(uuid),
+                        fg='red')
